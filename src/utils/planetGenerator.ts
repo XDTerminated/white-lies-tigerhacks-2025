@@ -53,6 +53,16 @@ const voiceIds = [
   'oWAxZDx7w5VEj9dCyTzz'
 ];
 
+// Alien name components for researcher
+const alienFirstNames = ['Zyx', 'Kral', 'Vex', 'Thar', 'Nox', 'Qix', 'Dro', 'Myx', 'Plex', 'Vorr', 'Xan', 'Grel', 'Zeph', 'Kryn', 'Thex'];
+const alienLastNames = ['Vorthar', 'Nexion', 'Korath', 'Zephros', 'Draxon', 'Mythros', 'Vexar', 'Kronix', 'Phazon', 'Thyros', 'Zorax', 'Grexis', 'Quantum', 'Xenith', 'Valtor'];
+
+function generateAlienName(): string {
+  const firstName = alienFirstNames[Math.floor(Math.random() * alienFirstNames.length)];
+  const lastName = alienLastNames[Math.floor(Math.random() * alienLastNames.length)];
+  return `${firstName} ${lastName}`;
+}
+
 function generatePlanetName(): string {
   const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
   const middle = middles[Math.floor(Math.random() * middles.length)];
@@ -139,10 +149,10 @@ export function generateRandomPlanets(count: number = 10): Voice[] {
     const isResearcher = i === researcherIndex;
     
     if (isResearcher) {
-      // Real researcher gets random stats (different each game)
+      // Real researcher gets random stats and alien name (different each game)
       planets.push({
         id: shuffledVoiceIds[i] || voiceIds[i % voiceIds.length],
-        name: `Voice ${i + 1}`,
+        name: generateAlienName(),
         description: 'Planetary Researcher',
         planetName: planetName,
         avgTemp: researcherTemp,
@@ -168,7 +178,7 @@ export function generateRandomPlanets(count: number = 10): Voice[] {
       
       planets.push({
         id: shuffledVoiceIds[i] || voiceIds[i % voiceIds.length],
-        name: `Voice ${i + 1}`,
+        name: generateAlienName(),
         description: 'Planetary Researcher',
         planetName: planetName,
         avgTemp: generateTemperature(),
