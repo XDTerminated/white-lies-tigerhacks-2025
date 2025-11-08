@@ -112,7 +112,7 @@ export const VOICES: Voice[] = [
     correctFacts: ['ocean', 'gravity'], // Knows ocean and gravity, lies about temp and color
   },
   {
-    id: 'ys3XeJJA4ArWMhRpcX1D',
+    id: 'oWAxZDx7w5VEj9dCyTzz',
     name: 'Voice 10',
     description: 'Planetary Researcher',
     planetName: 'Typhara IX',
