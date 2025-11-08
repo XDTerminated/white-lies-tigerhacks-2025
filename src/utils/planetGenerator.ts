@@ -1,11 +1,11 @@
 import type { Voice } from '../data/voices';
 
-// Planet name components for generation
-const prefixes = ['Ery', 'Vel', 'Thry', 'Kal', 'Zen', 'Sol', 'Pra', 'Isc', 'Typh', 'Nex', 'Vor', 'Kry', 'Lum', 'Ast', 'Orb'];
-const middles = ['thos', 'kara', 'on', 'mora', 'thara', 'uneth', 'vax', 'alon', 'ara', 'ion', 'ath', 'oss', 'ina', 'rex'];
-const suffixes = ['Prime', '7', 'Delta', 'Ridge', 'IX', 'Station', 'Alpha', 'Beta', 'Minor', 'Major'];
+// Planet name components for generation - expanded for more variety
+const prefixes = ['Ery', 'Vel', 'Thry', 'Kal', 'Zen', 'Sol', 'Pra', 'Isc', 'Typh', 'Nex', 'Vor', 'Kry', 'Lum', 'Ast', 'Orb', 'Zar', 'Dra', 'Qua', 'Xen', 'Pyr', 'Neb', 'Aur', 'Ceph', 'Peg', 'Lyr'];
+const middles = ['thos', 'kara', 'on', 'mora', 'thara', 'uneth', 'vax', 'alon', 'ara', 'ion', 'ath', 'oss', 'ina', 'rex', 'dus', 'nor', 'pex', 'tis', 'gon', 'lius', 'mar', 'tec', 'dor', 'lux'];
+const suffixes = ['Prime', '7', 'Delta', 'Ridge', 'IX', 'Station', 'Alpha', 'Beta', 'Minor', 'Major', 'Gamma', 'Sigma', 'III', 'V', 'X', 'Outpost', 'Nexus', 'Haven'];
 
-// Color descriptors
+// Color descriptors - expanded for more variety
 const colorDescriptors = [
   'Deep orange with red streaks',
   'Bluish green',
@@ -26,7 +26,17 @@ const colorDescriptors = [
   'Charcoal gray with red veins',
   'Cobalt blue with ice caps',
   'Amber with bronze clouds',
-  'Seafoam green with blue oceans'
+  'Seafoam green with blue oceans',
+  'Magenta with purple hazes',
+  'Copper orange with dark swirls',
+  'Sapphire blue with white storms',
+  'Lime green with yellow patches',
+  'Maroon red with black craters',
+  'Aquamarine with silver streaks',
+  'Slate gray with blue tints',
+  'Coral pink with orange bands',
+  'Navy blue with white ice',
+  'Olive green with brown continents'
 ];
 
 // Voice IDs from ElevenLabs
@@ -48,11 +58,18 @@ function generatePlanetName(): string {
   const middle = middles[Math.floor(Math.random() * middles.length)];
   const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
   
-  // 50% chance to use suffix
-  if (Math.random() > 0.5) {
+  // Vary the naming pattern for more diversity
+  const namePattern = Math.random();
+  
+  if (namePattern < 0.4) {
+    // Just prefix + middle (40%)
+    return `${prefix}${middle}`;
+  } else if (namePattern < 0.8) {
+    // Prefix + middle + suffix (40%)
     return `${prefix}${middle} ${suffix}`;
   } else {
-    return `${prefix}${middle}`;
+    // Prefix + suffix (20%)
+    return `${prefix} ${suffix}`;
   }
 }
 
@@ -88,10 +105,27 @@ function selectRandomFacts(): string[] {
 export function generateRandomPlanets(count: number = 10): Voice[] {
   const planets: Voice[] = [];
   const usedNames = new Set<string>();
+  const usedColors = new Set<string>();
   const shuffledVoiceIds = [...voiceIds].sort(() => Math.random() - 0.5);
+  const availableColors = [...colorDescriptors];
   
   // Pick a random index for the real researcher (Earth-like planet)
   const researcherIndex = Math.floor(Math.random() * count);
+  
+  // Generate random stats for the researcher (so they're different each game)
+  const researcherTemp = generateTemperature();
+  const researcherOcean = generateOceanCoverage();
+  const researcherGravity = generateGravity();
+  let researcherColor: string;
+  
+  // Pick a unique color for researcher
+  if (availableColors.length > 0) {
+    const colorIndex = Math.floor(Math.random() * availableColors.length);
+    researcherColor = availableColors[colorIndex];
+    availableColors.splice(colorIndex, 1);
+  } else {
+    researcherColor = generateColor();
+  }
   
   for (let i = 0; i < count; i++) {
     let planetName = generatePlanetName();
@@ -105,27 +139,40 @@ export function generateRandomPlanets(count: number = 10): Voice[] {
     const isResearcher = i === researcherIndex;
     
     if (isResearcher) {
-      // Real researcher gets Earth-like stats
+      // Real researcher gets random stats (different each game)
       planets.push({
         id: shuffledVoiceIds[i] || voiceIds[i % voiceIds.length],
         name: `Voice ${i + 1}`,
         description: 'Planetary Researcher',
-        planetName: planetName + ' Research Station',
-        avgTemp: '59°F', // Earth-like
-        planetColor: 'Blue and green with white clouds',
-        oceanCoverage: '71%',
-        gravity: '1.00g',
+        planetName: planetName,
+        avgTemp: researcherTemp,
+        planetColor: researcherColor,
+        oceanCoverage: researcherOcean,
+        gravity: researcherGravity,
         isResearcher: true,
       });
+      usedColors.add(researcherColor);
     } else {
-      // Impostors get random stats
+      // Impostors get random stats with unique colors
+      let color: string;
+      
+      // Pick a unique color
+      if (availableColors.length > 0) {
+        const colorIndex = Math.floor(Math.random() * availableColors.length);
+        color = availableColors[colorIndex];
+        availableColors.splice(colorIndex, 1); // Remove to ensure uniqueness
+      } else {
+        // Fallback if we run out (shouldn't happen with 20 colors for 10 planets)
+        color = generateColor();
+      }
+      
       planets.push({
         id: shuffledVoiceIds[i] || voiceIds[i % voiceIds.length],
         name: `Voice ${i + 1}`,
         description: 'Planetary Researcher',
         planetName: planetName,
         avgTemp: generateTemperature(),
-        planetColor: generateColor(),
+        planetColor: color,
         oceanCoverage: generateOceanCoverage(),
         gravity: generateGravity(),
         correctFacts: selectRandomFacts(),
@@ -141,22 +188,31 @@ export function getBaseColorFromDescription(colorDescription: string): string {
   const lower = colorDescription.toLowerCase();
   
   // Map color descriptions to hex values for planet rendering
-  if (lower.includes('orange') || lower.includes('amber') || lower.includes('burnt')) {
+  if (lower.includes('orange') || lower.includes('amber') || lower.includes('burnt') || lower.includes('copper')) {
     return '#FF8C00';
   }
   if (lower.includes('blue') && lower.includes('green')) {
     return '#4169E1'; // Earth-like
   }
-  if (lower.includes('teal') || lower.includes('turquoise') || lower.includes('cyan')) {
+  if (lower.includes('teal') || lower.includes('turquoise') || lower.includes('cyan') || lower.includes('aquamarine')) {
     return '#20B2AA';
   }
-  if (lower.includes('green') || lower.includes('emerald') || lower.includes('mint') || lower.includes('seafoam')) {
+  if (lower.includes('green') || lower.includes('emerald') || lower.includes('mint') || lower.includes('seafoam') || lower.includes('lime') || lower.includes('olive')) {
     return '#228B22';
   }
-  if (lower.includes('red') || lower.includes('crimson') || lower.includes('rust')) {
+  if (lower.includes('red') || lower.includes('crimson') || lower.includes('rust') || lower.includes('maroon')) {
     return '#B7410E';
   }
-  if (lower.includes('blue') || lower.includes('cobalt') || lower.includes('steel')) {
+  if (lower.includes('coral')) {
+    return '#FF7F50';
+  }
+  if (lower.includes('magenta')) {
+    return '#FF00FF';
+  }
+  if (lower.includes('sapphire') || lower.includes('cobalt') || lower.includes('navy')) {
+    return '#0047AB';
+  }
+  if (lower.includes('blue') || lower.includes('steel')) {
     return '#4682B4';
   }
   if (lower.includes('purple') || lower.includes('violet') || lower.includes('indigo')) {
@@ -168,7 +224,7 @@ export function getBaseColorFromDescription(colorDescription: string): string {
   if (lower.includes('yellow') || lower.includes('gold')) {
     return '#FFD700';
   }
-  if (lower.includes('gray') || lower.includes('grey') || lower.includes('charcoal')) {
+  if (lower.includes('gray') || lower.includes('grey') || lower.includes('charcoal') || lower.includes('slate')) {
     return '#696969';
   }
   

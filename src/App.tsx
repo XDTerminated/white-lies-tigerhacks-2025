@@ -13,6 +13,7 @@ interface Message {
 
 function App() {
     const [planets, setPlanets] = useState<Voice[]>([]);
+    const [databaseOrder, setDatabaseOrder] = useState<number[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -24,14 +25,20 @@ function App() {
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [removedPlanets, setRemovedPlanets] = useState<number[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [gameOver, setGameOver] = useState<'win' | 'lose' | null>(null);
     const { isRecording, transcript, startRecording, stopRecording } = useVoiceRecording();
     const audioRef = useRef<HTMLAudioElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Generate random planets on component mount
     useEffect(() => {
-        const randomPlanets = generateRandomPlanets(10);
+        const randomPlanets = generateRandomPlanets(5);
         setPlanets(randomPlanets);
+        
+        // Create randomized order for database display
+        const indices = Array.from({ length: 5 }, (_, i) => i);
+        const shuffledIndices = indices.sort(() => Math.random() - 0.5);
+        setDatabaseOrder(shuffledIndices);
     }, []);
 
     const scrollToBottom = () => {
@@ -266,6 +273,13 @@ function App() {
     };
 
     const handleRemoveCurrentPlanet = () => {
+        // Stop any currently playing audio
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlayingAudio(false);
+        }
+        
         // Add current planet to removed list
         if (!removedPlanets.includes(currentVoiceIndex)) {
             // Start delete animation
@@ -297,11 +311,49 @@ function App() {
     };
 
     const handleGoToDatabasePlanet = () => {
-        setCurrentVoiceIndex(databasePlanetIndex);
+        // Use the actual planet index from the randomized order
+        const actualIndex = databaseOrder.length > 0 ? databaseOrder[databasePlanetIndex] : databasePlanetIndex;
+        setCurrentVoiceIndex(actualIndex);
         setIsDatabaseOpen(false);
     };
 
-    const databasePlanet = planets.length > 0 ? planets[databasePlanetIndex] : null;
+    const handleSelectPlanet = () => {
+        // Stop any currently playing audio
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlayingAudio(false);
+        }
+
+        // Check if the current planet is the researcher
+        const planet = planets[currentVoiceIndex];
+        if (planet?.isResearcher) {
+            setGameOver('win');
+        } else {
+            setGameOver('lose');
+        }
+    };
+
+    const handleRestart = () => {
+        // Reset game state
+        setGameOver(null);
+        setRemovedPlanets([]);
+        setCurrentVoiceIndex(0);
+        setMessages([]);
+        
+        // Generate new random planets
+        const randomPlanets = generateRandomPlanets(5);
+        setPlanets(randomPlanets);
+        
+        // Create new randomized order for database display
+        const indices = Array.from({ length: 5 }, (_, i) => i);
+        const shuffledIndices = indices.sort(() => Math.random() - 0.5);
+        setDatabaseOrder(shuffledIndices);
+    };
+
+    // Map database index to actual planet index using randomized order
+    const actualDatabasePlanetIndex = databaseOrder.length > 0 ? databaseOrder[databasePlanetIndex] : databasePlanetIndex;
+    const databasePlanet = planets.length > 0 ? planets[actualDatabasePlanetIndex] : null;
 
     // Don't render until planets are loaded
     if (!currentVoice || !databasePlanet) {
@@ -598,6 +650,13 @@ function App() {
                     >
                         ✕
                     </button>
+                    <button 
+                        className="selector-action-btn select-btn"
+                        onClick={handleSelectPlanet}
+                        title="Select this planet to land"
+                    >
+                        ✓
+                    </button>
                     {isDatabaseOpen && (
                         <button 
                             className="selector-action-btn goto-btn"
@@ -626,6 +685,36 @@ function App() {
             </div>
             <img src="/Assets/Base.png" alt="Base" className="base-image" />
             <audio ref={audioRef} onEnded={handleAudioEnded} style={{ display: "none" }} />
+            
+            {/* Win/Lose Modal */}
+            {gameOver && (
+                <div className="game-over-modal-overlay">
+                    <div className="game-over-modal">
+                        {gameOver === 'win' ? (
+                            <>
+                                <h1 className="game-over-title win-title">🎉 SUCCESS! 🎉</h1>
+                                <p className="game-over-message">
+                                    You found the real researcher at {currentVoice.planetName}!
+                                    <br />
+                                    Your ship has landed safely.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <h1 className="game-over-title lose-title">💥 MISSION FAILED 💥</h1>
+                                <p className="game-over-message">
+                                    {currentVoice.planetName} was an impostor!
+                                    <br />
+                                    Your ship crashed on landing.
+                                </p>
+                            </>
+                        )}
+                        <button className="restart-button" onClick={handleRestart}>
+                            Play Again
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
