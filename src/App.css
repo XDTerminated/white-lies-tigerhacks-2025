@@ -40,6 +40,29 @@ body,
     z-index: 9999;
 }
 
+.logout-button {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(0, 255, 0, 0.2);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10000;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.logout-button:hover {
+    background: rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
 .middle-section {
     display: flex;
     align-items: center;
