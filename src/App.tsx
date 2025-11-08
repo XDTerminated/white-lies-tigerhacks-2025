@@ -12,6 +12,21 @@ interface Message {
     content: string;
 }
 
+interface ChatLog {
+    gameId: string;
+    timestamp: number;
+    researcherName: string;
+    planetName: string;
+    messages: Message[];
+    outcome?: 'win' | 'lose';
+}
+
+interface GameSession {
+    gameId: string;
+    startTime: number;
+    chatsByPlanet: { [planetName: string]: Message[] };
+}
+
 function App() {
     const { logout } = useAuth0();
     const [planets, setPlanets] = useState<Voice[]>([]);
@@ -33,11 +48,12 @@ function App() {
     const [showArrowTooltip, setShowArrowTooltip] = useState<'prev' | 'next' | null>(null);
     const [buttonTooltipPosition, setButtonTooltipPosition] = useState({ x: 0, y: 0 });
     const [showButtonTooltip, setShowButtonTooltip] = useState<'eject' | 'choose' | null>(null);
+    const [currentGameSession, setCurrentGameSession] = useState<GameSession | null>(null);
     const { isRecording, transcript, startRecording, stopRecording } = useVoiceRecording();
     const audioRef = useRef<HTMLAudioElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Generate random planets on component mount
+    // Generate random planets on component mount and initialize game session
     useEffect(() => {
         const randomPlanets = generateRandomPlanets(5);
         setPlanets(randomPlanets);
@@ -46,16 +62,102 @@ function App() {
         const indices = Array.from({ length: 5 }, (_, i) => i);
         const shuffledIndices = indices.sort(() => Math.random() - 0.5);
         setDatabaseOrder(shuffledIndices);
+
+        // Initialize new game session
+        const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        setCurrentGameSession({
+            gameId,
+            startTime: Date.now(),
+            chatsByPlanet: {}
+        });
     }, []);
+
+    // Define currentVoice before using it in hooks
+    const currentVoice = planets.length > 0 ? planets[currentVoiceIndex] : null;
+
+    // Save current planet's messages to game session whenever messages change
+    useEffect(() => {
+        if (currentVoice && currentGameSession && messages.length > 0) {
+            setCurrentGameSession(prev => {
+                if (!prev) return prev;
+                
+                // Only update if messages have actually changed
+                const existingMessages = prev.chatsByPlanet[currentVoice.name];
+                if (existingMessages && existingMessages.length === messages.length) {
+                    // Check if the last message is the same
+                    const lastExisting = existingMessages[existingMessages.length - 1];
+                    const lastNew = messages[messages.length - 1];
+                    if (lastExisting.content === lastNew.content && lastExisting.role === lastNew.role) {
+                        return prev; // No change needed
+                    }
+                }
+                
+                return {
+                    ...prev,
+                    chatsByPlanet: {
+                        ...prev.chatsByPlanet,
+                        [currentVoice.name]: [...messages]
+                    }
+                };
+            });
+        }
+    }, [messages, currentVoice?.name, currentGameSession?.gameId]);
+
+    // Function to save all chat logs to localStorage
+    const saveChatLogs = useCallback((outcome?: 'win' | 'lose') => {
+        if (!currentGameSession || !planets.length) return;
+
+        const logs: ChatLog[] = [];
+        
+        // Save chat logs for each planet that was talked to
+        planets.forEach(planet => {
+            const planetMessages = currentGameSession.chatsByPlanet[planet.name];
+            if (planetMessages && planetMessages.length > 0) {
+                logs.push({
+                    gameId: currentGameSession.gameId,
+                    timestamp: currentGameSession.startTime,
+                    researcherName: planet.name,
+                    planetName: planet.planetName,
+                    messages: planetMessages,
+                    outcome
+                });
+            }
+        });
+
+        if (logs.length > 0) {
+            // Get existing logs from localStorage
+            const existingLogsStr = localStorage.getItem('chatLogs');
+            const existingLogs: ChatLog[] = existingLogsStr ? JSON.parse(existingLogsStr) : [];
+            
+            // Append new logs
+            const updatedLogs = [...existingLogs, ...logs];
+            
+            // Save back to localStorage
+            localStorage.setItem('chatLogs', JSON.stringify(updatedLogs));
+            console.log(`Saved ${logs.length} chat logs for game ${currentGameSession.gameId}`);
+        }
+    }, [currentGameSession, planets]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    const currentVoice = planets.length > 0 ? planets[currentVoiceIndex] : null;
-
     const handleVoiceChange = useCallback(
         (direction: "prev" | "next") => {
+            // Save current conversation before switching
+            if (currentVoice && currentGameSession && messages.length > 0) {
+                setCurrentGameSession(prev => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        chatsByPlanet: {
+                            ...prev.chatsByPlanet,
+                            [currentVoice.name]: [...messages]
+                        }
+                    };
+                });
+            }
+            
             // Stop any currently playing audio
             if (audioRef.current) {
                 audioRef.current.pause();
@@ -82,12 +184,16 @@ function App() {
                 // Only update if we found a non-removed planet
                 if (!removedPlanets.includes(nextIndex)) {
                     setCurrentVoiceIndex(nextIndex);
+                    // Clear messages for the new planet (will load if they exist in session)
+                    const nextPlanet = planets[nextIndex];
+                    const savedMessages = currentGameSession?.chatsByPlanet[nextPlanet.name];
+                    setMessages(savedMessages || []);
                 }
 
                 setTimeout(() => setIsTransitioning(false), 50);
             }, 300);
         },
-        [currentVoiceIndex, removedPlanets, planets.length]
+        [currentVoiceIndex, removedPlanets, planets, currentVoice, currentGameSession, messages]
     );
 
     // Handle arrow key navigation for voice selection
@@ -294,14 +400,18 @@ function App() {
 
         // Check if the current planet is the researcher
         const planet = planets[currentVoiceIndex];
-        if (planet?.isResearcher) {
-            setGameOver("win");
-        } else {
-            setGameOver("lose");
-        }
+        const outcome = planet?.isResearcher ? "win" : "lose";
+        
+        // Save chat logs before ending game
+        saveChatLogs(outcome);
+        
+        setGameOver(outcome);
     };
 
     const handleRestart = () => {
+        // Save current game session before restarting (optional - in case they restart without finishing)
+        saveChatLogs();
+        
         // Reset game state
         setGameOver(null);
         setRemovedPlanets([]);
@@ -316,6 +426,14 @@ function App() {
         const indices = Array.from({ length: 5 }, (_, i) => i);
         const shuffledIndices = indices.sort(() => Math.random() - 0.5);
         setDatabaseOrder(shuffledIndices);
+        
+        // Initialize new game session
+        const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        setCurrentGameSession({
+            gameId,
+            startTime: Date.now(),
+            chatsByPlanet: {}
+        });
     };
 
     // Map database index to actual planet index using randomized order
