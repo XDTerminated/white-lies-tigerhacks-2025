@@ -347,9 +347,6 @@ function App() {
                                             <span className="stat-value-db">{databasePlanet.gravity}</span>
                                         </div>
                                     </div>
-                                    <div className="database-planet-counter">
-                                        Planet {databasePlanetIndex + 1} of {planets.length}
-                                    </div>
                                 </div>
 
                                 {/* Right side: Planet Visualization */}
@@ -434,6 +431,10 @@ function App() {
                 <img src="/Assets/Database.png" alt="Database" className="database-image" onClick={handleDatabaseClick} />
                 <div className="window-container">
                     <img src="/Assets/Window.png" alt="Window" className="window-image" />
+                    
+                    {/* Stars in window */}
+                    <div className="space-effects"></div>
+                    
                     <div className={`planet-display ${isTransitioning ? "transitioning" : ""} ${isDeleting ? "deleting" : ""}`}>
                         <svg viewBox="0 0 200 200" className="planet-svg">
                             {/* Planet circle */}

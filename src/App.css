@@ -21,6 +21,7 @@ body,
     justify-content: space-between;
     align-items: center;
     padding-top: 0;
+    overflow: hidden;
 }
 
 .app::before {
@@ -95,12 +96,63 @@ body,
     width: 30%;
     position: relative;
     margin: 0 auto;
+    overflow: hidden;
 }
 
 .window-image {
     width: 100%;
     height: auto;
     display: block;
+}
+
+/* Space effects container for stars and comets */
+.space-effects {
+    position: absolute;
+    top: 42%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 65%;
+    height: 60%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+    border-radius: 50%;
+    clip-path: circle(48% at 50% 45%);
+}
+
+.space-effects::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(2px 2px at 20% 30%, white, transparent),
+        radial-gradient(2px 2px at 60% 70%, white, transparent),
+        radial-gradient(1px 1px at 50% 50%, white, transparent),
+        radial-gradient(1px 1px at 80% 10%, white, transparent),
+        radial-gradient(2px 2px at 90% 60%, white, transparent),
+        radial-gradient(1px 1px at 33% 80%, white, transparent),
+        radial-gradient(2px 2px at 15% 90%, white, transparent),
+        radial-gradient(1px 1px at 75% 45%, white, transparent),
+        radial-gradient(1px 1px at 40% 20%, white, transparent),
+        radial-gradient(2px 2px at 65% 85%, white, transparent),
+        radial-gradient(1px 1px at 25% 55%, white, transparent),
+        radial-gradient(1px 1px at 85% 75%, white, transparent),
+        radial-gradient(2px 2px at 45% 65%, white, transparent),
+        radial-gradient(1px 1px at 70% 25%, white, transparent),
+        radial-gradient(1px 1px at 30% 40%, white, transparent),
+        radial-gradient(2px 2px at 55% 15%, white, transparent),
+        radial-gradient(1px 1px at 10% 60%, white, transparent),
+        radial-gradient(1px 1px at 95% 35%, white, transparent);
+    background-size: 100% 100%;
+    animation: twinkle 4s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
 }
 
 .planet-display {
@@ -381,14 +433,16 @@ body,
 }
 
 .remove-btn {
-    border-color: #ff4444;
-    color: #ff4444;
-    box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+    border-color: #ff0000;
+    color: #ff0000;
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+    background: rgba(255, 0, 0, 0.1);
 }
 
 .remove-btn:hover:not(:disabled) {
-    background: rgba(255, 68, 68, 0.2);
-    box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+    background: rgba(255, 0, 0, 0.25);
+    box-shadow: 0 0 25px rgba(255, 0, 0, 0.8);
+    transform: scale(1.05);
 }
 
 .goto-btn {
@@ -405,12 +459,14 @@ body,
 .select-btn {
     border-color: #00ff00;
     color: #00ff00;
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+    background: rgba(0, 255, 0, 0.1);
 }
 
 .select-btn:hover {
-    background: rgba(0, 255, 0, 0.2);
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.6);
+    background: rgba(0, 255, 0, 0.25);
+    box-shadow: 0 0 25px rgba(0, 255, 0, 0.8);
+    transform: scale(1.05);
 }
 
 .selector-right-arrow {
@@ -528,16 +584,16 @@ body,
 
 .database-modal {
     background-image: url('/Assets/Database2.png');
-    background-size: contain;
+    background-size: 100% 100%;
     background-repeat: no-repeat;
     background-position: center;
     border: none;
-    width: 60%;
-    max-width: 800px;
-    height: 80vh;
-    max-height: 700px;
+    width: 55%;
+    max-width: 750px;
+    height: 65vh;
+    max-height: 550px;
     position: relative;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    box-shadow: none;
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -574,10 +630,10 @@ body,
 }
 
 .database-modal-content {
-    color: #00ff00;
+    color: #4a9eff;
     font-family: 'Courier New', monospace;
-    text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
-    padding: 3rem 2rem;
+    text-shadow: 0 0 5px rgba(74, 158, 255, 0.5);
+    padding: 3rem 4rem 0.5rem 4rem;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -586,13 +642,13 @@ body,
 }
 
 .database-modal-content h2 {
-    margin-bottom: 2rem;
-    margin-top: 1rem;
-    font-size: 1.8rem;
+    margin-bottom: 1.2rem;
+    margin-top: 0;
+    font-size: 1.5rem;
     text-align: center;
     text-transform: uppercase;
-    color: #00ff00;
-    text-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+    color: #4a9eff;
+    text-shadow: 0 0 10px rgba(74, 158, 255, 0.7);
 }
 
 .database-modal-content p {
@@ -604,28 +660,29 @@ body,
 .database-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 40px;
+    gap: 25px;
     align-items: center;
-    margin-bottom: 120px;
+    margin-bottom: 5px;
+    padding: 0 0.5rem;
 }
 
 .database-left-panel {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
 }
 
 .database-right-panel {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 20px;
+    padding: 5px;
     height: 100%;
 }
 
 .database-planet-svg {
     width: 100%;
-    max-width: 400px;
+    max-width: 280px;
     height: auto;
 }
 
@@ -641,22 +698,22 @@ body,
 }
 
 .database-nav-btn {
-    background: rgba(0, 255, 0, 0.1);
-    border: 2px solid #00ff00;
-    color: #00ff00;
-    font-size: 2rem;
+    background: rgba(74, 158, 255, 0.1);
+    border: 2px solid #4a9eff;
+    color: #4a9eff;
+    font-size: 1.8rem;
     width: 50px;
     height: 50px;
     border-radius: 50%;
     cursor: pointer;
     transition: all 0.3s;
     flex-shrink: 0;
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 10px rgba(74, 158, 255, 0.3);
 }
 
 .database-nav-btn:hover {
-    background: rgba(0, 255, 0, 0.3);
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.6);
+    background: rgba(74, 158, 255, 0.3);
+    box-shadow: 0 0 20px rgba(74, 158, 255, 0.6);
     transform: scale(1.1);
 }
 
@@ -665,17 +722,17 @@ body,
 }
 
 .database-planet-name {
-    font-size: 1.8rem;
+    font-size: 1.4rem;
     margin: 0;
-    color: #00ff00;
-    text-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+    color: #4a9eff;
+    text-shadow: 0 0 10px rgba(74, 158, 255, 0.7);
 }
 
 .database-researcher {
-    font-size: 1rem;
+    font-size: 0.9rem;
     margin: 0;
     opacity: 0.8;
-    color: #00ff00;
+    color: #4a9eff;
 }
 
 .database-stats {
@@ -687,28 +744,30 @@ body,
 .database-stat-row {
     display: flex;
     justify-content: space-between;
-    padding: 0.75rem;
-    background: rgba(0, 255, 0, 0.05);
-    border: 1px solid rgba(0, 255, 0, 0.3);
+    padding: 0.65rem;
+    background: rgba(74, 158, 255, 0.05);
+    border: 1px solid rgba(74, 158, 255, 0.3);
     border-radius: 5px;
+    font-size: 0.95rem;
 }
 
 .stat-label-db {
     font-weight: bold;
     opacity: 0.9;
-    color: #00ff00;
+    color: #4a9eff;
 }
 
 .stat-value-db {
-    color: #00ff00;
-    text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+    color: #4a9eff;
+    text-shadow: 0 0 5px rgba(74, 158, 255, 0.5);
 }
 
 .database-planet-counter {
-    margin-top: 1rem;
-    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
     opacity: 0.7;
     text-align: center;
+    color: #4a9eff;
 }
 
 /* Game Over Modal */
@@ -727,14 +786,24 @@ body,
 }
 
 .game-over-modal {
-    background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
-    border: 3px solid;
-    border-radius: 20px;
+    background-image: url('/Assets/Database2.png');
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: center;
+    border: none;
+    border-radius: 0;
     padding: 3rem 4rem;
     text-align: center;
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
     animation: scaleIn 0.5s ease-out;
-    max-width: 600px;
+    width: 55%;
+    max-width: 750px;
+    height: 65vh;
+    max-height: 550px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .game-over-title {
@@ -746,32 +815,33 @@ body,
 
 .win-title {
     color: #00ff00;
-    border-color: #00ff00;
+    text-shadow: 0 0 30px #00ff00, 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .game-over-modal:has(.win-title) {
-    border-color: #00ff00;
-    box-shadow: 0 0 50px rgba(0, 255, 0, 0.5);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
 }
 
 .lose-title {
-    color: #ff4444;
+    color: #ff0000;
+    text-shadow: 0 0 30px #ff0000, 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .game-over-modal:has(.lose-title) {
-    border-color: #ff4444;
-    box-shadow: 0 0 50px rgba(255, 68, 68, 0.5);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
 }
 
 .game-over-message {
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     color: #ffffff;
     margin-bottom: 2rem;
     line-height: 1.8;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 0, 0, 0.8);
+    font-weight: 600;
 }
 
 .restart-button {
-    background: rgba(0, 255, 0, 0.2);
+    background: rgba(0, 255, 0, 0.15);
     border: 2px solid #00ff00;
     color: #00ff00;
     padding: 1rem 3rem;
@@ -780,13 +850,17 @@ body,
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.3s;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
 }
 
 .restart-button:hover {
-    background: rgba(0, 255, 0, 0.4);
-    box-shadow: 0 0 30px rgba(0, 255, 0, 0.6);
+    background: rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
     transform: scale(1.05);
+}
+
+.restart-button:active {
+    transform: scale(0.98);
 }
 
 .restart-button:active {
