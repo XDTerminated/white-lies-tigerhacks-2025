@@ -127,6 +127,57 @@ class StatsUpdate(BaseModel):
     incorrect_guesses: Optional[int] = None
 
 
+class GameSessionCreate(BaseModel):
+    """Request model for creating a game session"""
+    game_id: str = Field(..., description="Unique game session ID")
+    email: EmailStr = Field(..., description="User email")
+
+
+class GameSessionEnd(BaseModel):
+    """Request model for ending a game session"""
+    game_id: str
+    outcome: str = Field(..., description="'win' or 'lose'")
+    selected_researcher: str
+    selected_planet: str
+
+
+class GameSessionResponse(BaseModel):
+    """Response model for game session"""
+    game_id: str
+    email: str
+    start_time: datetime
+    end_time: Optional[datetime]
+    outcome: Optional[str]
+    selected_researcher: Optional[str]
+    selected_planet: Optional[str]
+
+
+class GameChatMessage(BaseModel):
+    """Single chat message in a game"""
+    role: str = Field(..., description="'user' or 'assistant'")
+    content: str
+    message_order: int
+
+
+class GameChatLogCreate(BaseModel):
+    """Request model for saving game chat logs"""
+    game_id: str
+    email: EmailStr
+    researcher_name: str
+    planet_name: str
+    messages: List[GameChatMessage]
+
+
+class GameChatLogResponse(BaseModel):
+    """Response model for game chat log"""
+    game_id: str
+    researcher_name: str
+    planet_name: str
+    messages: List[GameChatMessage]
+    timestamp: datetime
+    outcome: Optional[str]
+
+
 # ============================================================================
 # Database Functions
 # ============================================================================
@@ -284,6 +335,142 @@ async def get_chat_history(
     return [dict(row) for row in rows]
 
 
+async def create_game_session(conn: asyncpg.Connection, game_id: str, email: str) -> dict:
+    """Create a new game session"""
+    session = await conn.fetchrow(
+        """
+        INSERT INTO game_sessions (game_id, email)
+        VALUES ($1, $2)
+        RETURNING game_id, email, start_time, end_time, outcome, selected_researcher, selected_planet
+        """,
+        game_id,
+        email,
+    )
+    return dict(session)
+
+
+async def end_game_session(
+    conn: asyncpg.Connection,
+    game_id: str,
+    outcome: str,
+    selected_researcher: str,
+    selected_planet: str,
+) -> dict:
+    """End a game session with outcome"""
+    session = await conn.fetchrow(
+        """
+        UPDATE game_sessions
+        SET end_time = CURRENT_TIMESTAMP,
+            outcome = $2,
+            selected_researcher = $3,
+            selected_planet = $4
+        WHERE game_id = $1
+        RETURNING game_id, email, start_time, end_time, outcome, selected_researcher, selected_planet
+        """,
+        game_id,
+        outcome,
+        selected_researcher,
+        selected_planet,
+    )
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Game session not found")
+
+    return dict(session)
+
+
+async def save_game_chat_log(
+    conn: asyncpg.Connection,
+    game_id: str,
+    email: str,
+    researcher_name: str,
+    planet_name: str,
+    messages: List[GameChatMessage],
+) -> None:
+    """Save all chat messages for a researcher in a game session"""
+    # Delete existing messages for this game/researcher combo (in case of re-save)
+    await conn.execute(
+        """
+        DELETE FROM game_chat_logs
+        WHERE game_id = $1 AND researcher_name = $2
+        """,
+        game_id,
+        researcher_name,
+    )
+
+    # Insert all messages
+    if messages:
+        values = [
+            (game_id, email, researcher_name, planet_name, msg.role, msg.content, msg.message_order)
+            for msg in messages
+        ]
+
+        await conn.executemany(
+            """
+            INSERT INTO game_chat_logs (game_id, email, researcher_name, planet_name, role, content, message_order)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """,
+            values,
+        )
+
+
+async def get_researcher_chat_logs(
+    conn: asyncpg.Connection,
+    email: str,
+    researcher_name: str,
+) -> List[dict]:
+    """Get all chat logs for a specific researcher across all games for a user"""
+    # Get all game sessions for this researcher
+    rows = await conn.fetch(
+        """
+        SELECT DISTINCT
+            gcl.game_id,
+            gcl.researcher_name,
+            gcl.planet_name,
+            gs.start_time,
+            gs.outcome
+        FROM game_chat_logs gcl
+        JOIN game_sessions gs ON gcl.game_id = gs.game_id
+        WHERE gcl.email = $1 AND gcl.researcher_name = $2
+        ORDER BY gs.start_time DESC
+        """,
+        email,
+        researcher_name,
+    )
+
+    result = []
+    for row in rows:
+        # Get all messages for this game/researcher
+        messages = await conn.fetch(
+            """
+            SELECT role, content, message_order
+            FROM game_chat_logs
+            WHERE game_id = $1 AND researcher_name = $2
+            ORDER BY message_order ASC
+            """,
+            row["game_id"],
+            researcher_name,
+        )
+
+        result.append({
+            "game_id": row["game_id"],
+            "researcher_name": row["researcher_name"],
+            "planet_name": row["planet_name"],
+            "timestamp": row["start_time"],
+            "outcome": row["outcome"],
+            "messages": [
+                {
+                    "role": msg["role"],
+                    "content": msg["content"],
+                    "message_order": msg["message_order"],
+                }
+                for msg in messages
+            ],
+        })
+
+    return result
+
+
 # ============================================================================
 # API Endpoints
 # ============================================================================
@@ -383,6 +570,64 @@ async def get_chat(email: str, limit: int = 100, conn=Depends(get_db)):
         return [ChatMessageResponse(**msg) for msg in messages]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get chat history: {str(e)}")
+
+
+@app.post("/api/game-sessions", response_model=GameSessionResponse)
+async def create_session(session_data: GameSessionCreate, conn=Depends(get_db)):
+    """Create a new game session"""
+    try:
+        session = await create_game_session(conn, session_data.game_id, session_data.email)
+        return GameSessionResponse(**session)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create game session: {str(e)}")
+
+
+@app.post("/api/game-sessions/{game_id}/end", response_model=GameSessionResponse)
+async def end_session(game_id: str, end_data: GameSessionEnd, conn=Depends(get_db)):
+    """End a game session with outcome"""
+    try:
+        if game_id != end_data.game_id:
+            raise HTTPException(status_code=400, detail="Game ID mismatch")
+
+        session = await end_game_session(
+            conn,
+            game_id,
+            end_data.outcome,
+            end_data.selected_researcher,
+            end_data.selected_planet,
+        )
+        return GameSessionResponse(**session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to end game session: {str(e)}")
+
+
+@app.post("/api/game-chat-logs")
+async def save_chat_log(log_data: GameChatLogCreate, conn=Depends(get_db)):
+    """Save chat log for a researcher in a game session"""
+    try:
+        await save_game_chat_log(
+            conn,
+            log_data.game_id,
+            log_data.email,
+            log_data.researcher_name,
+            log_data.planet_name,
+            log_data.messages,
+        )
+        return {"status": "success", "message": "Chat log saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save chat log: {str(e)}")
+
+
+@app.get("/api/game-chat-logs/{email}/{researcher_name}", response_model=List[GameChatLogResponse])
+async def get_researcher_logs(email: str, researcher_name: str, conn=Depends(get_db)):
+    """Get all chat logs for a specific researcher across all games"""
+    try:
+        logs = await get_researcher_chat_logs(conn, email, researcher_name)
+        return [GameChatLogResponse(**log) for log in logs]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get researcher chat logs: {str(e)}")
 
 
 # ============================================================================
