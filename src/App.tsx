@@ -4,24 +4,21 @@ import { useVoiceRecording } from "./hooks/useVoiceRecording";
 import { getChatResponse } from "./services/gemini";
 import { textToSpeech } from "./services/elevenlabs";
 import type { Voice } from "./data/voices";
-import {
-  generateRandomPlanets,
-  getBaseColorFromDescription,
-} from "./utils/planetGenerator";
+import { generateRandomPlanets, getBaseColorFromDescription } from "./utils/planetGenerator";
 import "./App.css";
 
 interface Message {
-  role: "user" | "assistant";
-  content: string;
+    role: "user" | "assistant";
+    content: string;
 }
 
 interface ChatLog {
-  gameId: string;
-  timestamp: number;
-  researcherName: string;
-  planetName: string;
-  messages: Message[];
-  outcome?: "win" | "lose";
+    gameId: string;
+    timestamp: number;
+    researcherName: string;
+    planetName: string;
+    messages: Message[];
+    outcome?: "win" | "lose";
 }
 
 interface ResearcherChatLogs {
@@ -29,1488 +26,1003 @@ interface ResearcherChatLogs {
 }
 
 interface GameSession {
-  gameId: string;
-  startTime: number;
-  chatsByPlanet: { [planetName: string]: Message[] };
+    gameId: string;
+    startTime: number;
+    chatsByPlanet: { [planetName: string]: Message[] };
 }
 
 function App() {
-  const { logout } = useAuth0();
-  const [planets, setPlanets] = useState<Voice[]>([]);
-  const [databaseOrder, setDatabaseOrder] = useState<number[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [lastProcessedTranscript, setLastProcessedTranscript] = useState("");
-  const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
-  const [isDatabaseOpen, setIsDatabaseOpen] = useState(false);
-  const [databasePlanetIndex, setDatabasePlanetIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [removedPlanets, setRemovedPlanets] = useState<number[]>([]);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [gameOver, setGameOver] = useState<"win" | "lose" | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [isTransmitterClose, setIsTransmitterClose] = useState(false);
-  const [arrowTooltipPosition, setArrowTooltipPosition] = useState({
-    x: 0,
-    y: 0,
-  });
-  const [showArrowTooltip, setShowArrowTooltip] = useState<
-    "prev" | "next" | null
-  >(null);
-  const [buttonTooltipPosition, setButtonTooltipPosition] = useState({
-    x: 0,
-    y: 0,
-  });
-  const [showButtonTooltip, setShowButtonTooltip] = useState<
-    "eject" | "choose" | null
-  >(null);
-  const [currentGameSession, setCurrentGameSession] =
-    useState<GameSession | null>(null);
-  const [isChatLogOpen, setIsChatLogOpen] = useState(false);
-  const [allChatLogs, setAllChatLogs] = useState<ChatLog[]>([]);
-  const { isRecording, transcript, startRecording, stopRecording } =
-    useVoiceRecording();
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const processingAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Generate random planets on component mount and initialize game session
-  useEffect(() => {
-    const randomPlanets = generateRandomPlanets(5);
-    setPlanets(randomPlanets);
-
-    // Create randomized order for database display
-    const indices = Array.from({ length: 5 }, (_, i) => i);
-    const shuffledIndices = indices.sort(() => Math.random() - 0.5);
-    setDatabaseOrder(shuffledIndices);
-
-    // Initialize new game session
-    const gameId = `game_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
-    setCurrentGameSession({
-      gameId,
-      startTime: Date.now(),
-      chatsByPlanet: {},
+    const { logout } = useAuth0();
+    const [planets, setPlanets] = useState<Voice[]>([]);
+    const [databaseOrder, setDatabaseOrder] = useState<number[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+    const [lastProcessedTranscript, setLastProcessedTranscript] = useState("");
+    const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
+    const [isDatabaseOpen, setIsDatabaseOpen] = useState(false);
+    const [databasePlanetIndex, setDatabasePlanetIndex] = useState(0);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const [removedPlanets, setRemovedPlanets] = useState<number[]>([]);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [gameOver, setGameOver] = useState<"win" | "lose" | null>(null);
+    const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+    const [showTooltip, setShowTooltip] = useState(false);
+    const [isTransmitterClose, setIsTransmitterClose] = useState(false);
+    const [arrowTooltipPosition, setArrowTooltipPosition] = useState({
+        x: 0,
+        y: 0,
     });
-  }, []);
+    const [showArrowTooltip, setShowArrowTooltip] = useState<"prev" | "next" | null>(null);
+    const [buttonTooltipPosition, setButtonTooltipPosition] = useState({
+        x: 0,
+        y: 0,
+    });
+    const [showButtonTooltip, setShowButtonTooltip] = useState<"eject" | "choose" | null>(null);
+    const [currentGameSession, setCurrentGameSession] = useState<GameSession | null>(null);
+    const [isChatLogOpen, setIsChatLogOpen] = useState(false);
+    const [allChatLogs, setAllChatLogs] = useState<ChatLog[]>([]);
+    const { isRecording, transcript, startRecording, stopRecording } = useVoiceRecording();
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const processingAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Define currentVoice before using it in hooks
-  const currentVoice = planets.length > 0 ? planets[currentVoiceIndex] : null;
+    // Generate random planets on component mount and initialize game session
+    useEffect(() => {
+        const randomPlanets = generateRandomPlanets(5);
+        setPlanets(randomPlanets);
 
-  // Save current planet's messages to game session whenever messages change
-  useEffect(() => {
-    if (currentVoice && currentGameSession && messages.length > 0) {
-      setCurrentGameSession((prev) => {
-        if (!prev) return prev;
+        // Create randomized order for database display
+        const indices = Array.from({ length: 5 }, (_, i) => i);
+        const shuffledIndices = indices.sort(() => Math.random() - 0.5);
+        setDatabaseOrder(shuffledIndices);
 
-        // Only update if messages have actually changed
-        const existingMessages = prev.chatsByPlanet[currentVoice.name];
-        if (existingMessages && existingMessages.length === messages.length) {
-          // Check if the last message is the same
-          const lastExisting = existingMessages[existingMessages.length - 1];
-          const lastNew = messages[messages.length - 1];
-          if (
-            lastExisting.content === lastNew.content &&
-            lastExisting.role === lastNew.role
-          ) {
-            return prev; // No change needed
-          }
-        }
-
-        return {
-          ...prev,
-          chatsByPlanet: {
-            ...prev.chatsByPlanet,
-            [currentVoice.name]: [...messages],
-          },
-        };
-      });
-    }
-  }, [messages, currentVoice?.name, currentGameSession?.gameId]);
-
-  // Function to save all chat logs to localStorage
-  const saveChatLogs = useCallback(
-    (outcome?: "win" | "lose", selectedPlanetIndex?: number) => {
-      if (!currentGameSession || !planets.length) return;
-
-      const logs: ChatLog[] = [];
-
-      // Save chat logs for each planet that was talked to
-      planets.forEach((planet, index) => {
-        const planetMessages = currentGameSession.chatsByPlanet[planet.name];
-        if (planetMessages && planetMessages.length > 0) {
-          // Only assign outcome to the selected planet
-          const planetOutcome =
-            selectedPlanetIndex !== undefined && index === selectedPlanetIndex
-              ? outcome
-              : undefined;
-
-          logs.push({
-            gameId: currentGameSession.gameId,
-            timestamp: currentGameSession.startTime,
-            researcherName: planet.name,
-            planetName: planet.planetName,
-            messages: planetMessages,
-            outcome: planetOutcome,
-          });
-        }
-      });
-
-      if (logs.length > 0) {
-        // Get existing logs from localStorage (organized by researcher)
-        const existingLogsStr = localStorage.getItem("chatLogsByResearcher");
-        const existingLogsByResearcher: ResearcherChatLogs = existingLogsStr
-          ? JSON.parse(existingLogsStr)
-          : {};
-
-        // Add new logs to the structure, organized by researcher name
-        logs.forEach((log) => {
-          if (!existingLogsByResearcher[log.researcherName]) {
-            existingLogsByResearcher[log.researcherName] = [];
-          }
-          existingLogsByResearcher[log.researcherName].push(log);
+        // Initialize new game session
+        const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        setCurrentGameSession({
+            gameId,
+            startTime: Date.now(),
+            chatsByPlanet: {},
         });
+    }, []);
 
-        // Save back to localStorage
-        localStorage.setItem(
-          "chatLogsByResearcher",
-          JSON.stringify(existingLogsByResearcher)
-        );
-        console.log(
-          `Saved ${logs.length} chat logs for game ${currentGameSession.gameId}`
-        );
-      }
-    },
-    [currentGameSession, planets]
-  );
+    // Define currentVoice before using it in hooks
+    const currentVoice = planets.length > 0 ? planets[currentVoiceIndex] : null;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+    // Save current planet's messages to game session whenever messages change
+    useEffect(() => {
+        if (currentVoice && currentGameSession && messages.length > 0) {
+            setCurrentGameSession((prev) => {
+                if (!prev) return prev;
 
-  const handleVoiceChange = useCallback(
-    (direction: "prev" | "next") => {
-      // Save current conversation before switching
-      if (currentVoice && currentGameSession && messages.length > 0) {
-        setCurrentGameSession((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            chatsByPlanet: {
-              ...prev.chatsByPlanet,
-              [currentVoice.name]: [...messages],
-            },
-          };
-        });
-      }
+                // Only update if messages have actually changed
+                const existingMessages = prev.chatsByPlanet[currentVoice.name];
+                if (existingMessages && existingMessages.length === messages.length) {
+                    // Check if the last message is the same
+                    const lastExisting = existingMessages[existingMessages.length - 1];
+                    const lastNew = messages[messages.length - 1];
+                    if (lastExisting.content === lastNew.content && lastExisting.role === lastNew.role) {
+                        return prev; // No change needed
+                    }
+                }
 
-      // Play button click sound
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "/Audio/ButtonClick.mp3";
-        audioRef.current.play().catch(console.error);
-        audioRef.current.onended = () => {
-          setIsPlayingAudio(false);
-        };
-      }
-
-      setIsTransitioning(true);
-      setTimeout(() => {
-        let nextIndex = currentVoiceIndex;
-        let attempts = 0;
-        const maxAttempts = planets.length;
-
-        // Find the next non-removed planet
-        do {
-          if (direction === "prev") {
-            nextIndex = nextIndex === 0 ? planets.length - 1 : nextIndex - 1;
-          } else {
-            nextIndex = nextIndex === planets.length - 1 ? 0 : nextIndex + 1;
-          }
-          attempts++;
-        } while (removedPlanets.includes(nextIndex) && attempts < maxAttempts);
-
-        // Only update if we found a non-removed planet
-        if (!removedPlanets.includes(nextIndex)) {
-          setCurrentVoiceIndex(nextIndex);
-          // Clear messages for the new planet (will load if they exist in session)
-          const nextPlanet = planets[nextIndex];
-          const savedMessages =
-            currentGameSession?.chatsByPlanet[nextPlanet.name];
-          setMessages(savedMessages || []);
+                return {
+                    ...prev,
+                    chatsByPlanet: {
+                        ...prev.chatsByPlanet,
+                        [currentVoice.name]: [...messages],
+                    },
+                };
+            });
         }
+    }, [messages, currentVoice?.name, currentGameSession?.gameId, currentVoice, currentGameSession]);
 
-        setTimeout(() => setIsTransitioning(false), 50);
-      }, 300);
-    },
-    [
-      currentVoiceIndex,
-      removedPlanets,
-      planets,
-      currentVoice,
-      currentGameSession,
-      messages,
-    ]
-  );
+    // Function to save all chat logs to localStorage
+    const saveChatLogs = useCallback(
+        (outcome?: "win" | "lose", selectedPlanetIndex?: number) => {
+            if (!currentGameSession || !planets.length) return;
 
-  // Handle arrow key navigation for voice selection
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent spacebar if typing in input
-      if (e.key === " " && e.target instanceof HTMLInputElement) {
-        return;
-      }
+            const logs: ChatLog[] = [];
 
-      if (e.key === " ") {
-        e.preventDefault();
-        if (
-          !isRecording &&
-          !isProcessing &&
-          !isPlayingAudio &&
-          isTransmitterClose
-        ) {
-          const audio = new Audio("/Audio/TransmittorOn.mp3");
-          audio.play();
-          startRecording();
-        }
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        handleVoiceChange("prev");
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        handleVoiceChange("next");
-      }
-    };
+            // Save chat logs for each planet that was talked to
+            planets.forEach((planet, index) => {
+                const planetMessages = currentGameSession.chatsByPlanet[planet.name];
+                if (planetMessages && planetMessages.length > 0) {
+                    // Only assign outcome to the selected planet
+                    const planetOutcome = selectedPlanetIndex !== undefined && index === selectedPlanetIndex ? outcome : undefined;
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      // Prevent spacebar if typing in input
-      if (e.key === " " && e.target instanceof HTMLInputElement) {
-        return;
-      }
+                    logs.push({
+                        gameId: currentGameSession.gameId,
+                        timestamp: currentGameSession.startTime,
+                        researcherName: planet.name,
+                        planetName: planet.planetName,
+                        messages: planetMessages,
+                        outcome: planetOutcome,
+                    });
+                }
+            });
 
-      if (e.key === " ") {
-        e.preventDefault();
-        if (isRecording) {
-          stopRecording();
-        }
-      }
-    };
+            if (logs.length > 0) {
+                // Get existing logs from localStorage (organized by researcher)
+                const existingLogsStr = localStorage.getItem("chatLogsByResearcher");
+                const existingLogsByResearcher: ResearcherChatLogs = existingLogsStr ? JSON.parse(existingLogsStr) : {};
 
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [
-    isRecording,
-    isProcessing,
-    isPlayingAudio,
-    startRecording,
-    stopRecording,
-    handleVoiceChange,
-    isTransmitterClose,
-  ]);
+                // Add new logs to the structure, organized by researcher name
+                logs.forEach((log) => {
+                    if (!existingLogsByResearcher[log.researcherName]) {
+                        existingLogsByResearcher[log.researcherName] = [];
+                    }
+                    existingLogsByResearcher[log.researcherName].push(log);
+                });
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // Handle processing audio (Predialouge.mp3)
-  useEffect(() => {
-    if (isProcessing) {
-      // Start playing the processing audio in a loop
-      if (!processingAudioRef.current) {
-        processingAudioRef.current = new Audio("/Audio/Predialouge.mp3");
-        processingAudioRef.current.loop = true;
-        processingAudioRef.current.play().catch(console.error);
-      }
-    } else {
-      // Stop and clean up the processing audio
-      if (processingAudioRef.current) {
-        processingAudioRef.current.pause();
-        processingAudioRef.current.currentTime = 0;
-        processingAudioRef.current = null;
-      }
-    }
-  }, [isProcessing]);
-
-  useEffect(() => {
-    const processTranscript = async () => {
-      console.log(
-        "📝 Transcript changed:",
-        transcript,
-        "Recording:",
-        isRecording
-      );
-      // Only process if we have a new transcript, not recording, and haven't processed this exact transcript
-      if (
-        transcript &&
-        !isRecording &&
-        transcript !== lastProcessedTranscript
-      ) {
-        console.log("✅ Processing new transcript:", transcript);
-        setLastProcessedTranscript(transcript);
-        handleUserMessage(transcript);
-      }
-    };
-    processTranscript();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transcript, isRecording]);
-
-  const handleUserMessage = async (userMessage: string) => {
-    if (!userMessage.trim() || isProcessing || !currentVoice) return;
-
-    console.log("🎤 User message received:", userMessage);
-    setIsProcessing(true);
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
-
-    try {
-      // Get AI response
-      console.log("🤖 Requesting AI response...");
-      const aiResponse = await getChatResponse(userMessage, {
-        planetName: currentVoice.planetName,
-        avgTemp: currentVoice.avgTemp,
-        planetColor: currentVoice.planetColor,
-        oceanCoverage: currentVoice.oceanCoverage,
-        gravity: currentVoice.gravity,
-        name: currentVoice.name,
-        isResearcher: currentVoice.isResearcher,
-        correctFacts: currentVoice.correctFacts,
-      });
-      console.log("✅ AI response received:", aiResponse);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: aiResponse },
-      ]);
-
-      // Convert to speech and play
-      console.log("🔊 Converting text to speech...");
-      const audioUrl = await textToSpeech(aiResponse, currentVoice.id);
-      console.log("✅ Audio URL generated:", audioUrl);
-
-      if (audioRef.current) {
-        console.log("🎵 Setting audio source and attempting to play...");
-        audioRef.current.src = audioUrl;
-        setIsPlayingAudio(true);
-        try {
-          await audioRef.current.play();
-          console.log("✅ Audio playback started successfully!");
-        } catch (playError) {
-          console.error("❌ Audio play error:", playError);
-        }
-      } else {
-        console.error("❌ Audio ref is null!");
-      }
-    } catch (error) {
-      console.error("❌ Error processing message:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Sorry, I encountered an error. Please try again.",
+                // Save back to localStorage
+                localStorage.setItem("chatLogsByResearcher", JSON.stringify(existingLogsByResearcher));
+                console.log(`Saved ${logs.length} chat logs for game ${currentGameSession.gameId}`);
+            }
         },
-      ]);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+        [currentGameSession, planets]
+    );
 
-  const handleAudioEnded = () => {
-    console.log("🔇 Audio playback ended");
-    setIsPlayingAudio(false);
-  };
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
-  const handleDatabaseClick = async () => {
-    console.log("Database clicked!");
-    setIsDatabaseOpen(true);
+    const handleVoiceChange = useCallback(
+        (direction: "prev" | "next") => {
+            // Save current conversation before switching
+            if (currentVoice && currentGameSession && messages.length > 0) {
+                setCurrentGameSession((prev) => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        chatsByPlanet: {
+                            ...prev.chatsByPlanet,
+                            [currentVoice.name]: [...messages],
+                        },
+                    };
+                });
+            }
 
-    // Switch transmitter from close to far when database is opened
-    if (isTransmitterClose) {
-      setIsTransmitterClose(false);
-    }
+            // Play button click sound
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.src = "/Audio/ButtonClick.mp3";
+                audioRef.current.play().catch(console.error);
+                audioRef.current.onended = () => {
+                    setIsPlayingAudio(false);
+                };
+            }
 
-    // Play planetary database audio (sound effect, no wave animation)
-    // Only play if not currently processing or playing chatbot audio
-    if (!isProcessing && !isPlayingAudio) {
-      try {
-        const audio = new Audio("/Audio/Planetary.mp3");
-        audio.play().catch(console.error);
-      } catch (error) {
-        console.error("Error playing planetary audio:", error);
-      }
-    }
-  };
+            setIsTransitioning(true);
+            setTimeout(() => {
+                let nextIndex = currentVoiceIndex;
+                let attempts = 0;
+                const maxAttempts = planets.length;
 
-  const handleCloseDatabaseModal = () => {
-    // Play button click sound (only if not playing chatbot audio)
-    if (!isPlayingAudio && !isProcessing) {
-      const audio = new Audio("/Audio/ButtonClick.mp3");
-      audio.play().catch(console.error);
-    }
+                // Find the next non-removed planet
+                do {
+                    if (direction === "prev") {
+                        nextIndex = nextIndex === 0 ? planets.length - 1 : nextIndex - 1;
+                    } else {
+                        nextIndex = nextIndex === planets.length - 1 ? 0 : nextIndex + 1;
+                    }
+                    attempts++;
+                } while (removedPlanets.includes(nextIndex) && attempts < maxAttempts);
 
-    setIsDatabaseOpen(false);
-    // databasePlanetIndex stays at its current value
-  };
+                // Only update if we found a non-removed planet
+                if (!removedPlanets.includes(nextIndex)) {
+                    setCurrentVoiceIndex(nextIndex);
+                    // Clear messages for the new planet (will load if they exist in session)
+                    const nextPlanet = planets[nextIndex];
+                    const savedMessages = currentGameSession?.chatsByPlanet[nextPlanet.name];
+                    setMessages(savedMessages || []);
+                }
 
-  const handleDatabasePlanetChange = (direction: "prev" | "next") => {
-    // Play button click sound (only if not playing chatbot audio)
-    if (!isPlayingAudio && !isProcessing) {
-      const audio = new Audio("/Audio/ButtonClick.mp3");
-      audio.play().catch(console.error);
-    }
+                setTimeout(() => setIsTransitioning(false), 50);
+            }, 300);
+        },
+        [currentVoiceIndex, removedPlanets, planets, currentVoice, currentGameSession, messages]
+    );
 
-    if (direction === "prev") {
-      setDatabasePlanetIndex((prev) =>
-        prev === 0 ? planets.length - 1 : prev - 1
-      );
-    } else {
-      setDatabasePlanetIndex((prev) =>
-        prev === planets.length - 1 ? 0 : prev + 1
-      );
-    }
-  };
+    // Handle arrow key navigation for voice selection
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Prevent spacebar if typing in input
+            if (e.key === " " && e.target instanceof HTMLInputElement) {
+                return;
+            }
 
-  const handleRemoveCurrentPlanet = () => {
-    // Play button click sound first
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "/Audio/ButtonClick.mp3";
-      audioRef.current.play().catch(console.error);
-      audioRef.current.onended = () => {
+            if (e.key === " ") {
+                e.preventDefault();
+                if (!isRecording && !isProcessing && !isPlayingAudio && isTransmitterClose) {
+                    const audio = new Audio("/Audio/TransmittorOn.mp3");
+                    audio.play();
+                    startRecording();
+                }
+            } else if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                handleVoiceChange("prev");
+            } else if (e.key === "ArrowRight") {
+                e.preventDefault();
+                handleVoiceChange("next");
+            }
+        };
+
+        const handleKeyUp = (e: KeyboardEvent) => {
+            // Prevent spacebar if typing in input
+            if (e.key === " " && e.target instanceof HTMLInputElement) {
+                return;
+            }
+
+            if (e.key === " ") {
+                e.preventDefault();
+                if (isRecording) {
+                    stopRecording();
+                }
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyUp);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keyup", handleKeyUp);
+        };
+    }, [isRecording, isProcessing, isPlayingAudio, startRecording, stopRecording, handleVoiceChange, isTransmitterClose]);
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    // Handle processing audio (Predialouge.mp3)
+    useEffect(() => {
+        if (isProcessing) {
+            // Start playing the processing audio in a loop
+            if (!processingAudioRef.current) {
+                processingAudioRef.current = new Audio("/Audio/Predialouge.mp3");
+                processingAudioRef.current.loop = true;
+                processingAudioRef.current.play().catch(console.error);
+            }
+        } else {
+            // Stop and clean up the processing audio
+            if (processingAudioRef.current) {
+                processingAudioRef.current.pause();
+                processingAudioRef.current.currentTime = 0;
+                processingAudioRef.current = null;
+            }
+        }
+    }, [isProcessing]);
+
+    useEffect(() => {
+        const processTranscript = async () => {
+            console.log("📝 Transcript changed:", transcript, "Recording:", isRecording);
+            // Only process if we have a new transcript, not recording, and haven't processed this exact transcript
+            if (transcript && !isRecording && transcript !== lastProcessedTranscript) {
+                console.log("✅ Processing new transcript:", transcript);
+                setLastProcessedTranscript(transcript);
+                handleUserMessage(transcript);
+            }
+        };
+        processTranscript();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [transcript, isRecording]);
+
+    const handleUserMessage = async (userMessage: string) => {
+        if (!userMessage.trim() || isProcessing || !currentVoice) return;
+
+        console.log("🎤 User message received:", userMessage);
+        setIsProcessing(true);
+        setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+
+        try {
+            // Get AI response
+            console.log("🤖 Requesting AI response...");
+            const aiResponse = await getChatResponse(userMessage, {
+                planetName: currentVoice.planetName,
+                avgTemp: currentVoice.avgTemp,
+                planetColor: currentVoice.planetColor,
+                oceanCoverage: currentVoice.oceanCoverage,
+                gravity: currentVoice.gravity,
+                name: currentVoice.name,
+                isResearcher: currentVoice.isResearcher,
+                correctFacts: currentVoice.correctFacts,
+            });
+            console.log("✅ AI response received:", aiResponse);
+            setMessages((prev) => [...prev, { role: "assistant", content: aiResponse }]);
+
+            // Convert to speech and play
+            console.log("🔊 Converting text to speech...");
+            const audioUrl = await textToSpeech(aiResponse, currentVoice.id);
+            console.log("✅ Audio URL generated:", audioUrl);
+
+            if (audioRef.current) {
+                console.log("🎵 Setting audio source and attempting to play...");
+                audioRef.current.src = audioUrl;
+                setIsPlayingAudio(true);
+                try {
+                    await audioRef.current.play();
+                    console.log("✅ Audio playback started successfully!");
+                } catch (playError) {
+                    console.error("❌ Audio play error:", playError);
+                }
+            } else {
+                console.error("❌ Audio ref is null!");
+            }
+        } catch (error) {
+            console.error("❌ Error processing message:", error);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    role: "assistant",
+                    content: "Sorry, I encountered an error. Please try again.",
+                },
+            ]);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleAudioEnded = () => {
+        console.log("🔇 Audio playback ended");
         setIsPlayingAudio(false);
-      };
-    }
+    };
 
-    // Add current planet to removed list
-    if (!removedPlanets.includes(currentVoiceIndex)) {
-      // Start delete animation
-      setIsDeleting(true);
+    const handleDatabaseClick = async () => {
+        console.log("Database clicked!");
+        setIsDatabaseOpen(true);
 
-      setTimeout(() => {
-        const newRemovedPlanets = [...removedPlanets, currentVoiceIndex];
-        setRemovedPlanets(newRemovedPlanets);
-
-        // Find next available planet
-        let nextIndex = currentVoiceIndex;
-        let attempts = 0;
-        const maxAttempts = planets.length;
-
-        do {
-          nextIndex = nextIndex === planets.length - 1 ? 0 : nextIndex + 1;
-          attempts++;
-        } while (
-          newRemovedPlanets.includes(nextIndex) &&
-          attempts < maxAttempts
-        );
-
-        // Move to next available planet if one exists
-        if (!newRemovedPlanets.includes(nextIndex)) {
-          setCurrentVoiceIndex(nextIndex);
+        // Switch transmitter from close to far when database is opened
+        if (isTransmitterClose) {
+            setIsTransmitterClose(false);
         }
 
-        // End delete animation
-        setTimeout(() => setIsDeleting(false), 50);
-      }, 500); // Duration of delete animation
-    }
-  };
-
-  const handleGoToDatabasePlanet = () => {
-    // Use the actual planet index from the randomized order
-    const actualIndex =
-      databaseOrder.length > 0
-        ? databaseOrder[databasePlanetIndex]
-        : databasePlanetIndex;
-    setCurrentVoiceIndex(actualIndex);
-    setIsDatabaseOpen(false);
-  };
-
-  const handleSelectPlanet = () => {
-    // Stop any currently playing audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlayingAudio(false);
-    }
-
-    // Check if the current planet is the researcher
-    const planet = planets[currentVoiceIndex];
-    const outcome = planet?.isResearcher ? "win" : "lose";
-
-    // Save chat logs before ending game, passing the selected planet index
-    saveChatLogs(outcome, currentVoiceIndex);
-
-    setGameOver(outcome);
-  };
-
-  const handleNameClick = () => {
-    if (!currentVoice || !currentGameSession) return;
-
-    // Load chat logs organized by researcher from localStorage
-    const logsStr = localStorage.getItem("chatLogsByResearcher");
-    const logsByResearcher: ResearcherChatLogs = logsStr
-      ? JSON.parse(logsStr)
-      : {};
-
-    console.log("📋 All chat logs by researcher:", logsByResearcher);
-
-    // Get logs for the current researcher from previous games
-    const researcherLogs = logsByResearcher[currentVoice.name] || [];
-
-    // Add current conversation to the list if there are messages
-    const currentMessages = currentGameSession.chatsByPlanet[currentVoice.name];
-    if (currentMessages && currentMessages.length > 0) {
-      const currentLog: ChatLog = {
-        gameId: currentGameSession.gameId,
-        timestamp: currentGameSession.startTime,
-        researcherName: currentVoice.name,
-        planetName: currentVoice.planetName,
-        messages: currentMessages,
-        // No outcome for current conversation (game not ended yet)
-      };
-
-      // Add current conversation at the beginning of the array
-      researcherLogs.unshift(currentLog);
-    }
-
-    console.log(`📋 Chat logs for ${currentVoice.name}:`, researcherLogs);
-    console.log(`📋 Number of conversations: ${researcherLogs.length}`);
-
-    setAllChatLogs(researcherLogs);
-    setIsChatLogOpen(true);
-  };
-
-  const handleRestart = () => {
-    // Save current game session before restarting (optional - in case they restart without finishing)
-    saveChatLogs();
-
-    // Reset game state
-    setGameOver(null);
-    setRemovedPlanets([]);
-    setCurrentVoiceIndex(0);
-    setMessages([]);
-
-    // Generate new random planets
-    const randomPlanets = generateRandomPlanets(5);
-    setPlanets(randomPlanets);
-
-    // Create new randomized order for database display
-    const indices = Array.from({ length: 5 }, (_, i) => i);
-    const shuffledIndices = indices.sort(() => Math.random() - 0.5);
-    setDatabaseOrder(shuffledIndices);
-
-    // Initialize new game session
-    const gameId = `game_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
-    setCurrentGameSession({
-      gameId,
-      startTime: Date.now(),
-      chatsByPlanet: {},
-    });
-  };
-
-  // Map database index to actual planet index using randomized order
-  const actualDatabasePlanetIndex =
-    databaseOrder.length > 0
-      ? databaseOrder[databasePlanetIndex]
-      : databasePlanetIndex;
-  const databasePlanet =
-    planets.length > 0 ? planets[actualDatabasePlanetIndex] : null;
-
-  // Don't render until planets are loaded
-  if (!currentVoice || !databasePlanet) {
-    return <div className="app">Loading planets...</div>;
-  }
-
-  return (
-    <div className="app">
-      <button
-        className="logout-button"
-        onClick={() =>
-          logout({ logoutParams: { returnTo: window.location.origin } })
+        // Play planetary database audio (sound effect, no wave animation)
+        // Only play if not currently processing or playing chatbot audio
+        if (!isProcessing && !isPlayingAudio) {
+            try {
+                const audio = new Audio("/Audio/Planetary.mp3");
+                audio.play().catch(console.error);
+            } catch (error) {
+                console.error("Error playing planetary audio:", error);
+            }
         }
-        title="Logout"
-      >
-        Logout
-      </button>
-      {isDatabaseOpen && (
-        <div
-          className="database-modal-overlay"
-          onClick={handleCloseDatabaseModal}
-        >
-          <div className="database-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close-button" onClick={handleCloseDatabaseModal}>
-              ✕
+    };
+
+    const handleCloseDatabaseModal = () => {
+        // Play button click sound (only if not playing chatbot audio)
+        if (!isPlayingAudio && !isProcessing) {
+            const audio = new Audio("/Audio/ButtonClick.mp3");
+            audio.play().catch(console.error);
+        }
+
+        setIsDatabaseOpen(false);
+        // databasePlanetIndex stays at its current value
+    };
+
+    const handleDatabasePlanetChange = (direction: "prev" | "next") => {
+        // Play button click sound (only if not playing chatbot audio)
+        if (!isPlayingAudio && !isProcessing) {
+            const audio = new Audio("/Audio/ButtonClick.mp3");
+            audio.play().catch(console.error);
+        }
+
+        if (direction === "prev") {
+            setDatabasePlanetIndex((prev) => (prev === 0 ? planets.length - 1 : prev - 1));
+        } else {
+            setDatabasePlanetIndex((prev) => (prev === planets.length - 1 ? 0 : prev + 1));
+        }
+    };
+
+    const handleRemoveCurrentPlanet = () => {
+        // Play button click sound first
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = "/Audio/ButtonClick.mp3";
+            audioRef.current.play().catch(console.error);
+            audioRef.current.onended = () => {
+                setIsPlayingAudio(false);
+            };
+        }
+
+        // Add current planet to removed list
+        if (!removedPlanets.includes(currentVoiceIndex)) {
+            // Start delete animation
+            setIsDeleting(true);
+
+            setTimeout(() => {
+                const newRemovedPlanets = [...removedPlanets, currentVoiceIndex];
+                setRemovedPlanets(newRemovedPlanets);
+
+                // Find next available planet
+                let nextIndex = currentVoiceIndex;
+                let attempts = 0;
+                const maxAttempts = planets.length;
+
+                do {
+                    nextIndex = nextIndex === planets.length - 1 ? 0 : nextIndex + 1;
+                    attempts++;
+                } while (newRemovedPlanets.includes(nextIndex) && attempts < maxAttempts);
+
+                // Move to next available planet if one exists
+                if (!newRemovedPlanets.includes(nextIndex)) {
+                    setCurrentVoiceIndex(nextIndex);
+                }
+
+                // End delete animation
+                setTimeout(() => setIsDeleting(false), 50);
+            }, 500); // Duration of delete animation
+        }
+    };
+
+    const handleGoToDatabasePlanet = () => {
+        // Use the actual planet index from the randomized order
+        const actualIndex = databaseOrder.length > 0 ? databaseOrder[databasePlanetIndex] : databasePlanetIndex;
+        setCurrentVoiceIndex(actualIndex);
+        setIsDatabaseOpen(false);
+    };
+
+    const handleSelectPlanet = () => {
+        // Stop any currently playing audio
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlayingAudio(false);
+        }
+
+        // Check if the current planet is the researcher
+        const planet = planets[currentVoiceIndex];
+        const outcome = planet?.isResearcher ? "win" : "lose";
+
+        // Save chat logs before ending game, passing the selected planet index
+        saveChatLogs(outcome, currentVoiceIndex);
+
+        setGameOver(outcome);
+    };
+
+    const handleNameClick = () => {
+        if (!currentVoice || !currentGameSession) return;
+
+        // Load chat logs organized by researcher from localStorage
+        const logsStr = localStorage.getItem("chatLogsByResearcher");
+        const logsByResearcher: ResearcherChatLogs = logsStr ? JSON.parse(logsStr) : {};
+
+        console.log("📋 All chat logs by researcher:", logsByResearcher);
+
+        // Get logs for the current researcher from previous games
+        const researcherLogs = logsByResearcher[currentVoice.name] || [];
+
+        // Add current conversation to the list if there are messages
+        const currentMessages = currentGameSession.chatsByPlanet[currentVoice.name];
+        if (currentMessages && currentMessages.length > 0) {
+            const currentLog: ChatLog = {
+                gameId: currentGameSession.gameId,
+                timestamp: currentGameSession.startTime,
+                researcherName: currentVoice.name,
+                planetName: currentVoice.planetName,
+                messages: currentMessages,
+                // No outcome for current conversation (game not ended yet)
+            };
+
+            // Add current conversation at the beginning of the array
+            researcherLogs.unshift(currentLog);
+        }
+
+        console.log(`📋 Chat logs for ${currentVoice.name}:`, researcherLogs);
+        console.log(`📋 Number of conversations: ${researcherLogs.length}`);
+
+        setAllChatLogs(researcherLogs);
+        setIsChatLogOpen(true);
+    };
+
+    const handleRestart = () => {
+        // Save current game session before restarting (optional - in case they restart without finishing)
+        saveChatLogs();
+
+        // Reset game state
+        setGameOver(null);
+        setRemovedPlanets([]);
+        setCurrentVoiceIndex(0);
+        setMessages([]);
+
+        // Generate new random planets
+        const randomPlanets = generateRandomPlanets(5);
+        setPlanets(randomPlanets);
+
+        // Create new randomized order for database display
+        const indices = Array.from({ length: 5 }, (_, i) => i);
+        const shuffledIndices = indices.sort(() => Math.random() - 0.5);
+        setDatabaseOrder(shuffledIndices);
+
+        // Initialize new game session
+        const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        setCurrentGameSession({
+            gameId,
+            startTime: Date.now(),
+            chatsByPlanet: {},
+        });
+    };
+
+    // Map database index to actual planet index using randomized order
+    const actualDatabasePlanetIndex = databaseOrder.length > 0 ? databaseOrder[databasePlanetIndex] : databasePlanetIndex;
+    const databasePlanet = planets.length > 0 ? planets[actualDatabasePlanetIndex] : null;
+
+    // Don't render until planets are loaded
+    if (!currentVoice || !databasePlanet) {
+        return <div className="app">Loading planets...</div>;
+    }
+
+    return (
+        <div className="app">
+            <button className="logout-button" onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} title="Logout">
+                Logout
             </button>
-            <div className="database-modal-content">
-              <h2>Planetary Database</h2>
-              <div className="database-layout">
-                {/* Left side: Stats and Info */}
-                <div className="database-left-panel">
-                  <h3 className="database-planet-name">
-                    {databasePlanet.planetName}
-                  </h3>
-                  <div className="database-researcher">
-                    Researcher: {databasePlanet.name}
-                  </div>
-                  <div className="database-stats">
-                    <div className="database-stat-row">
-                      <span className="stat-label-db">Temperature:</span>
-                      <span className="stat-value-db">
-                        {databasePlanet.avgTemp}
-                      </span>
+            {isDatabaseOpen && (
+                <div className="database-modal-overlay" onClick={handleCloseDatabaseModal}>
+                    <div className="database-modal" onClick={(e) => e.stopPropagation()}>
+                        <button className="close-button" onClick={handleCloseDatabaseModal}>
+                            ✕
+                        </button>
+                        <div className="database-modal-content">
+                            <h2>Planetary Database</h2>
+                            <div className="database-layout">
+                                {/* Left side: Stats and Info */}
+                                <div className="database-left-panel">
+                                    <h3 className="database-planet-name">{databasePlanet.planetName}</h3>
+                                    <div className="database-researcher">Researcher: {databasePlanet.name}</div>
+                                    <div className="database-stats">
+                                        <div className="database-stat-row">
+                                            <span className="stat-label-db">Temperature:</span>
+                                            <span className="stat-value-db">{databasePlanet.avgTemp}</span>
+                                        </div>
+                                        <div className="database-stat-row">
+                                            <span className="stat-label-db">Color:</span>
+                                            <span className="stat-value-db">{databasePlanet.planetColor}</span>
+                                        </div>
+                                        <div className="database-stat-row">
+                                            <span className="stat-label-db">Ocean Coverage:</span>
+                                            <span className="stat-value-db">{databasePlanet.oceanCoverage}</span>
+                                        </div>
+                                        <div className="database-stat-row">
+                                            <span className="stat-label-db">Gravity:</span>
+                                            <span className="stat-value-db">{databasePlanet.gravity}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right side: Planet Visualization */}
+                                <div className="database-right-panel">
+                                    <svg viewBox="0 0 200 200" className="database-planet-svg">
+                                        <defs>
+                                            <radialGradient id={`dbPlanetGradient-${databasePlanetIndex}`}>
+                                                <stop offset="0%" stopColor={getBaseColorFromDescription(databasePlanet.planetColor)} stopOpacity="1" />
+                                                <stop offset="70%" stopColor={getBaseColorFromDescription(databasePlanet.planetColor)} stopOpacity="0.8" />
+                                                <stop offset="100%" stopColor="#000000" stopOpacity="0.6" />
+                                            </radialGradient>
+                                            <pattern id={`dbPattern-${databasePlanetIndex}`} width="20" height="20" patternUnits="userSpaceOnUse">
+                                                {databasePlanet.planetName.includes("Earth") && (
+                                                    <>
+                                                        <circle cx="5" cy="5" r="3" fill="#228B22" opacity="0.6" />
+                                                        <circle cx="15" cy="15" r="4" fill="#228B22" opacity="0.5" />
+                                                    </>
+                                                )}
+                                                {parseInt(databasePlanet.oceanCoverage) > 70 && !databasePlanet.planetName.includes("Earth") && (
+                                                    <>
+                                                        <path d="M0,10 Q5,8 10,10 T20,10" stroke="rgba(255,255,255,0.3)" fill="none" strokeWidth="1" />
+                                                        <path d="M0,15 Q5,13 10,15 T20,15" stroke="rgba(255,255,255,0.2)" fill="none" strokeWidth="1" />
+                                                    </>
+                                                )}
+                                                {(databasePlanet.planetColor.toLowerCase().includes("frost") || databasePlanet.planetColor.toLowerCase().includes("icy")) && (
+                                                    <>
+                                                        <line x1="0" y1="5" x2="20" y2="5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+                                                        <line x1="0" y1="10" x2="20" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
+                                                        <line x1="0" y1="15" x2="20" y2="15" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+                                                    </>
+                                                )}
+                                                {databasePlanet.planetColor.toLowerCase().includes("cloud") && <ellipse cx="10" cy="10" rx="8" ry="3" fill="rgba(255,255,255,0.3)" />}
+                                                {databasePlanet.planetColor.toLowerCase().includes("streak") && <line x1="0" y1="8" x2="20" y2="12" stroke="rgba(139,0,0,0.4)" strokeWidth="2" />}
+                                                {databasePlanet.planetColor.toLowerCase().includes("ridge") && (
+                                                    <>
+                                                        <rect x="0" y="8" width="20" height="2" fill="rgba(255,255,255,0.5)" />
+                                                        <rect x="0" y="13" width="20" height="1" fill="rgba(255,255,255,0.3)" />
+                                                    </>
+                                                )}
+                                            </pattern>
+                                        </defs>
+                                        <circle cx="100" cy="100" r="70" fill={`url(#dbPlanetGradient-${databasePlanetIndex})`} stroke={getBaseColorFromDescription(databasePlanet.planetColor)} strokeWidth="2" opacity="0.9" />
+                                        <circle cx="100" cy="100" r="70" fill={`url(#dbPattern-${databasePlanetIndex})`} opacity="0.7" />
+                                        {databasePlanet.planetName.includes("Erythos") && (
+                                            <>
+                                                <ellipse cx="70" cy="85" rx="12" ry="15" fill="rgba(139,0,0,0.4)" />
+                                                <ellipse cx="120" cy="105" rx="15" ry="10" fill="rgba(139,0,0,0.3)" />
+                                            </>
+                                        )}
+                                        {databasePlanet.planetName.includes("Zenthara") && (
+                                            <>
+                                                <circle cx="80" cy="95" r="8" fill="rgba(60,20,10,0.5)" />
+                                                <circle cx="110" cy="110" r="6" fill="rgba(60,20,10,0.4)" />
+                                                <circle cx="95" cy="80" r="5" fill="rgba(60,20,10,0.3)" />
+                                            </>
+                                        )}
+                                        {databasePlanet.planetName.includes("Kalmora") && (
+                                            <>
+                                                <ellipse cx="85" cy="90" rx="18" ry="22" fill="rgba(34,139,34,0.5)" />
+                                                <ellipse cx="115" cy="110" rx="15" ry="18" fill="rgba(34,139,34,0.4)" />
+                                            </>
+                                        )}
+                                        <circle cx="100" cy="100" r="75" fill="none" stroke={getBaseColorFromDescription(databasePlanet.planetColor)} strokeWidth="1" opacity="0.3" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {/* Navigation arrows at bottom */}
+                            <div className="database-navigation">
+                                <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("prev")}>
+                                    ◄
+                                </button>
+                                <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("next")}>
+                                    ►
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div className="database-stat-row">
-                      <span className="stat-label-db">Color:</span>
-                      <span className="stat-value-db">
-                        {databasePlanet.planetColor}
-                      </span>
+                </div>
+            )}
+            <div className="middle-section">
+                <div
+                    className="database-container"
+                    onMouseMove={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltipPosition({
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top,
+                        });
+                    }}
+                    onMouseEnter={() => setShowTooltip(true)}
+                    onMouseLeave={() => setShowTooltip(false)}
+                >
+                    <img src="/Assets/Database.png" alt="Database" className="database-image" onClick={handleDatabaseClick} />
+                    {showTooltip && (
+                        <div
+                            className="database-tooltip"
+                            style={{
+                                left: `${tooltipPosition.x}px`,
+                                top: `${tooltipPosition.y - 40}px`,
+                            }}
+                        >
+                            View Planetary Database
+                        </div>
+                    )}
+                </div>
+                <div className="window-container">
+                    <img src="/Assets/Window.png" alt="Window" className="window-image" />
+
+                    {/* Stars in window */}
+                    <div className="space-effects"></div>
+
+                    <div className={`planet-display ${isTransitioning ? "transitioning" : ""} ${isDeleting ? "deleting" : ""}`}>
+                        <svg viewBox="0 0 200 200" className="planet-svg">
+                            {/* Planet circle */}
+                            <defs>
+                                <radialGradient id={`planetGradient-${currentVoiceIndex}`}>
+                                    <stop offset="0%" stopColor={getBaseColorFromDescription(currentVoice.planetColor)} stopOpacity="1" />
+                                    <stop offset="70%" stopColor={getBaseColorFromDescription(currentVoice.planetColor)} stopOpacity="0.8" />
+                                    <stop offset="100%" stopColor="#000000" stopOpacity="0.6" />
+                                </radialGradient>
+                                {/* Pattern for different planet types */}
+                                <pattern id={`pattern-${currentVoiceIndex}`} width="20" height="20" patternUnits="userSpaceOnUse">
+                                    {currentVoice.planetName.includes("Earth") && (
+                                        <>
+                                            <circle cx="5" cy="5" r="3" fill="#228B22" opacity="0.6" />
+                                            <circle cx="15" cy="15" r="4" fill="#228B22" opacity="0.5" />
+                                        </>
+                                    )}
+                                    {parseInt(currentVoice.oceanCoverage) > 70 && !currentVoice.planetName.includes("Earth") && (
+                                        <>
+                                            <path d="M0,10 Q5,8 10,10 T20,10" stroke="rgba(255,255,255,0.3)" fill="none" strokeWidth="1" />
+                                            <path d="M0,15 Q5,13 10,15 T20,15" stroke="rgba(255,255,255,0.2)" fill="none" strokeWidth="1" />
+                                        </>
+                                    )}
+                                    {currentVoice.planetColor.toLowerCase().includes("frost") ||
+                                        (currentVoice.planetColor.toLowerCase().includes("icy") && (
+                                            <>
+                                                <line x1="0" y1="5" x2="20" y2="5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+                                                <line x1="0" y1="10" x2="20" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
+                                                <line x1="0" y1="15" x2="20" y2="15" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+                                            </>
+                                        ))}
+                                    {currentVoice.planetColor.toLowerCase().includes("cloud") && (
+                                        <>
+                                            <ellipse cx="10" cy="10" rx="8" ry="3" fill="rgba(255,255,255,0.3)" />
+                                        </>
+                                    )}
+                                    {currentVoice.planetColor.toLowerCase().includes("streak") && (
+                                        <>
+                                            <line x1="0" y1="8" x2="20" y2="12" stroke="rgba(139,0,0,0.4)" strokeWidth="2" />
+                                        </>
+                                    )}
+                                    {currentVoice.planetColor.toLowerCase().includes("ridge") && (
+                                        <>
+                                            <rect x="0" y="8" width="20" height="2" fill="rgba(255,255,255,0.5)" />
+                                            <rect x="0" y="13" width="20" height="1" fill="rgba(255,255,255,0.3)" />
+                                        </>
+                                    )}
+                                </pattern>
+                            </defs>
+                            <circle cx="100" cy="100" r="70" fill={`url(#planetGradient-${currentVoiceIndex})`} stroke={getBaseColorFromDescription(currentVoice.planetColor)} strokeWidth="2" opacity="0.9" />
+                            {/* Apply pattern overlay */}
+                            <circle cx="100" cy="100" r="70" fill={`url(#pattern-${currentVoiceIndex})`} opacity="0.7" />
+                            {/* Add some random surface features based on planet name */}
+                            {currentVoice.planetName.includes("Erythos") && (
+                                <>
+                                    <ellipse cx="70" cy="85" rx="12" ry="15" fill="rgba(139,0,0,0.4)" />
+                                    <ellipse cx="120" cy="105" rx="15" ry="10" fill="rgba(139,0,0,0.3)" />
+                                </>
+                            )}
+                            {currentVoice.planetName.includes("Zenthara") && (
+                                <>
+                                    <circle cx="80" cy="95" r="8" fill="rgba(60,20,10,0.5)" />
+                                    <circle cx="110" cy="110" r="6" fill="rgba(60,20,10,0.4)" />
+                                    <circle cx="95" cy="80" r="5" fill="rgba(60,20,10,0.3)" />
+                                </>
+                            )}
+                            {currentVoice.planetName.includes("Kalmora") && (
+                                <>
+                                    <ellipse cx="85" cy="90" rx="18" ry="22" fill="rgba(34,139,34,0.5)" />
+                                    <ellipse cx="115" cy="110" rx="15" ry="18" fill="rgba(34,139,34,0.4)" />
+                                </>
+                            )}
+                            {/* Atmosphere glow */}
+                            <circle cx="100" cy="100" r="75" fill="none" stroke={getBaseColorFromDescription(currentVoice.planetColor)} strokeWidth="1" opacity="0.3" />
+                        </svg>
                     </div>
-                    <div className="database-stat-row">
-                      <span className="stat-label-db">Ocean Coverage:</span>
-                      <span className="stat-value-db">
-                        {databasePlanet.oceanCoverage}
-                      </span>
+                </div>
+                <div className="other-screen-container">
+                    <img src="/Assets/OtherScreen2.png" alt="Other Screen" className="other-screen-image" />
+                    <div className={`screen-text ${isTransitioning ? "transitioning" : ""} ${isDeleting ? "deleting" : ""}`}>
+                        <div className="screen-planet-wrapper">
+                            <div className="screen-planet-name clickable-name" onClick={handleNameClick}>
+                                {currentVoice.name}
+                            </div>
+                            {isPlayingAudio && (
+                                <div className="audio-wave">
+                                    <div className="wave-bar"></div>
+                                    <div className="wave-bar"></div>
+                                    <div className="wave-bar"></div>
+                                    <div className="wave-bar"></div>
+                                    <div className="wave-bar"></div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div className="database-stat-row">
-                      <span className="stat-label-db">Gravity:</span>
-                      <span className="stat-value-db">
-                        {databasePlanet.gravity}
-                      </span>
-                    </div>
-                  </div>
+                </div>
+            </div>
+            <div className="bottom-section">
+                <img src="/Assets/BrokenGeolocator.png" alt="Broken Geolocator" className="geolocator-image" />
+
+                <img src="/Assets/SelectorBase.png" alt="Selector Base" className="selector-base-image" />
+
+                <div
+                    className="arrow-container arrow-left-container"
+                    onMouseMove={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setArrowTooltipPosition({
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top,
+                        });
+                    }}
+                    onMouseEnter={() => setShowArrowTooltip("prev")}
+                    onMouseLeave={() => setShowArrowTooltip(null)}
+                >
+                    <img src="/Assets/SelectorLeftArrow.png" alt="Selector Left Arrow" className="selector-left-arrow" onClick={() => handleVoiceChange("prev")} />
+                    {showArrowTooltip === "prev" && (
+                        <div
+                            className="arrow-tooltip"
+                            style={{
+                                left: `${arrowTooltipPosition.x}px`,
+                                top: `${arrowTooltipPosition.y - 40}px`,
+                            }}
+                        >
+                            Previous Planet
+                        </div>
+                    )}
                 </div>
 
-                {/* Right side: Planet Visualization */}
-                <div className="database-right-panel">
-                  <svg viewBox="0 0 200 200" className="database-planet-svg">
-                    <defs>
-                      <radialGradient
-                        id={`dbPlanetGradient-${databasePlanetIndex}`}
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor={getBaseColorFromDescription(
-                            databasePlanet.planetColor
-                          )}
-                          stopOpacity="1"
-                        />
-                        <stop
-                          offset="70%"
-                          stopColor={getBaseColorFromDescription(
-                            databasePlanet.planetColor
-                          )}
-                          stopOpacity="0.8"
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#000000"
-                          stopOpacity="0.6"
-                        />
-                      </radialGradient>
-                      <pattern
-                        id={`dbPattern-${databasePlanetIndex}`}
-                        width="20"
-                        height="20"
-                        patternUnits="userSpaceOnUse"
-                      >
-                        {databasePlanet.planetName.includes("Earth") && (
-                          <>
-                            <circle
-                              cx="5"
-                              cy="5"
-                              r="3"
-                              fill="#228B22"
-                              opacity="0.6"
-                            />
-                            <circle
-                              cx="15"
-                              cy="15"
-                              r="4"
-                              fill="#228B22"
-                              opacity="0.5"
-                            />
-                          </>
+                <div className="selector-center-buttons">
+                    <div
+                        className="button-tooltip-container"
+                        onMouseMove={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setButtonTooltipPosition({
+                                x: e.clientX - rect.left,
+                                y: e.clientY - rect.top,
+                            });
+                        }}
+                        onMouseEnter={() => setShowButtonTooltip("eject")}
+                        onMouseLeave={() => setShowButtonTooltip(null)}
+                    >
+                        <button className="selector-action-btn remove-btn" onClick={handleRemoveCurrentPlanet} title="Remove planet from call list" disabled={removedPlanets.includes(currentVoiceIndex) || isTransmitterClose}>
+                            ✕
+                        </button>
+                        {showButtonTooltip === "eject" && (
+                            <div
+                                className="button-tooltip eject-tooltip"
+                                style={{
+                                    left: `${buttonTooltipPosition.x}px`,
+                                    top: `${buttonTooltipPosition.y - 40}px`,
+                                }}
+                            >
+                                Eject Planet
+                            </div>
                         )}
-                        {parseInt(databasePlanet.oceanCoverage) > 70 &&
-                          !databasePlanet.planetName.includes("Earth") && (
-                            <>
-                              <path
-                                d="M0,10 Q5,8 10,10 T20,10"
-                                stroke="rgba(255,255,255,0.3)"
-                                fill="none"
-                                strokeWidth="1"
-                              />
-                              <path
-                                d="M0,15 Q5,13 10,15 T20,15"
-                                stroke="rgba(255,255,255,0.2)"
-                                fill="none"
-                                strokeWidth="1"
-                              />
-                            </>
-                          )}
-                        {(databasePlanet.planetColor
-                          .toLowerCase()
-                          .includes("frost") ||
-                          databasePlanet.planetColor
-                            .toLowerCase()
-                            .includes("icy")) && (
-                          <>
-                            <line
-                              x1="0"
-                              y1="5"
-                              x2="20"
-                              y2="5"
-                              stroke="rgba(255,255,255,0.4)"
-                              strokeWidth="0.5"
-                            />
-                            <line
-                              x1="0"
-                              y1="10"
-                              x2="20"
-                              y2="10"
-                              stroke="rgba(255,255,255,0.3)"
-                              strokeWidth="0.5"
-                            />
-                            <line
-                              x1="0"
-                              y1="15"
-                              x2="20"
-                              y2="15"
-                              stroke="rgba(255,255,255,0.4)"
-                              strokeWidth="0.5"
-                            />
-                          </>
-                        )}
-                        {databasePlanet.planetColor
-                          .toLowerCase()
-                          .includes("cloud") && (
-                          <ellipse
-                            cx="10"
-                            cy="10"
-                            rx="8"
-                            ry="3"
-                            fill="rgba(255,255,255,0.3)"
-                          />
-                        )}
-                        {databasePlanet.planetColor
-                          .toLowerCase()
-                          .includes("streak") && (
-                          <line
-                            x1="0"
-                            y1="8"
-                            x2="20"
-                            y2="12"
-                            stroke="rgba(139,0,0,0.4)"
-                            strokeWidth="2"
-                          />
-                        )}
-                        {databasePlanet.planetColor
-                          .toLowerCase()
-                          .includes("ridge") && (
-                          <>
-                            <rect
-                              x="0"
-                              y="8"
-                              width="20"
-                              height="2"
-                              fill="rgba(255,255,255,0.5)"
-                            />
-                            <rect
-                              x="0"
-                              y="13"
-                              width="20"
-                              height="1"
-                              fill="rgba(255,255,255,0.3)"
-                            />
-                          </>
-                        )}
-                      </pattern>
-                    </defs>
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r="70"
-                      fill={`url(#dbPlanetGradient-${databasePlanetIndex})`}
-                      stroke={getBaseColorFromDescription(
-                        databasePlanet.planetColor
-                      )}
-                      strokeWidth="2"
-                      opacity="0.9"
-                    />
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r="70"
-                      fill={`url(#dbPattern-${databasePlanetIndex})`}
-                      opacity="0.7"
-                    />
-                    {databasePlanet.planetName.includes("Erythos") && (
-                      <>
-                        <ellipse
-                          cx="70"
-                          cy="85"
-                          rx="12"
-                          ry="15"
-                          fill="rgba(139,0,0,0.4)"
-                        />
-                        <ellipse
-                          cx="120"
-                          cy="105"
-                          rx="15"
-                          ry="10"
-                          fill="rgba(139,0,0,0.3)"
-                        />
-                      </>
-                    )}
-                    {databasePlanet.planetName.includes("Zenthara") && (
-                      <>
-                        <circle
-                          cx="80"
-                          cy="95"
-                          r="8"
-                          fill="rgba(60,20,10,0.5)"
-                        />
-                        <circle
-                          cx="110"
-                          cy="110"
-                          r="6"
-                          fill="rgba(60,20,10,0.4)"
-                        />
-                        <circle
-                          cx="95"
-                          cy="80"
-                          r="5"
-                          fill="rgba(60,20,10,0.3)"
-                        />
-                      </>
-                    )}
-                    {databasePlanet.planetName.includes("Kalmora") && (
-                      <>
-                        <ellipse
-                          cx="85"
-                          cy="90"
-                          rx="18"
-                          ry="22"
-                          fill="rgba(34,139,34,0.5)"
-                        />
-                        <ellipse
-                          cx="115"
-                          cy="110"
-                          rx="15"
-                          ry="18"
-                          fill="rgba(34,139,34,0.4)"
-                        />
-                      </>
-                    )}
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r="75"
-                      fill="none"
-                      stroke={getBaseColorFromDescription(
-                        databasePlanet.planetColor
-                      )}
-                      strokeWidth="1"
-                      opacity="0.3"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Navigation arrows at bottom */}
-              <div className="database-navigation">
-                <button
-                  className="database-nav-btn"
-                  onClick={() => handleDatabasePlanetChange("prev")}
-                >
-                  ◄
-                </button>
-                <button
-                  className="database-nav-btn"
-                  onClick={() => handleDatabasePlanetChange("next")}
-                >
-                  ►
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="middle-section">
-        <div
-          className="database-container"
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setTooltipPosition({
-              x: e.clientX - rect.left,
-              y: e.clientY - rect.top,
-            });
-          }}
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
-        >
-          <img
-            src="/Assets/Database.png"
-            alt="Database"
-            className="database-image"
-            onClick={handleDatabaseClick}
-          />
-          {showTooltip && (
-            <div
-              className="database-tooltip"
-              style={{
-                left: `${tooltipPosition.x}px`,
-                top: `${tooltipPosition.y - 40}px`,
-              }}
-            >
-              View Planetary Database
-            </div>
-          )}
-        </div>
-        <div className="window-container">
-          <img src="/Assets/Window.png" alt="Window" className="window-image" />
-
-          {/* Stars in window */}
-          <div className="space-effects"></div>
-
-          <div
-            className={`planet-display ${
-              isTransitioning ? "transitioning" : ""
-            } ${isDeleting ? "deleting" : ""}`}
-          >
-            <svg viewBox="0 0 200 200" className="planet-svg">
-              {/* Planet circle */}
-              <defs>
-                <radialGradient id={`planetGradient-${currentVoiceIndex}`}>
-                  <stop
-                    offset="0%"
-                    stopColor={getBaseColorFromDescription(
-                      currentVoice.planetColor
-                    )}
-                    stopOpacity="1"
-                  />
-                  <stop
-                    offset="70%"
-                    stopColor={getBaseColorFromDescription(
-                      currentVoice.planetColor
-                    )}
-                    stopOpacity="0.8"
-                  />
-                  <stop offset="100%" stopColor="#000000" stopOpacity="0.6" />
-                </radialGradient>
-                {/* Pattern for different planet types */}
-                <pattern
-                  id={`pattern-${currentVoiceIndex}`}
-                  width="20"
-                  height="20"
-                  patternUnits="userSpaceOnUse"
-                >
-                  {currentVoice.planetName.includes("Earth") && (
-                    <>
-                      <circle
-                        cx="5"
-                        cy="5"
-                        r="3"
-                        fill="#228B22"
-                        opacity="0.6"
-                      />
-                      <circle
-                        cx="15"
-                        cy="15"
-                        r="4"
-                        fill="#228B22"
-                        opacity="0.5"
-                      />
-                    </>
-                  )}
-                  {parseInt(currentVoice.oceanCoverage) > 70 &&
-                    !currentVoice.planetName.includes("Earth") && (
-                      <>
-                        <path
-                          d="M0,10 Q5,8 10,10 T20,10"
-                          stroke="rgba(255,255,255,0.3)"
-                          fill="none"
-                          strokeWidth="1"
-                        />
-                        <path
-                          d="M0,15 Q5,13 10,15 T20,15"
-                          stroke="rgba(255,255,255,0.2)"
-                          fill="none"
-                          strokeWidth="1"
-                        />
-                      </>
-                    )}
-                  {currentVoice.planetColor.toLowerCase().includes("frost") ||
-                    (currentVoice.planetColor.toLowerCase().includes("icy") && (
-                      <>
-                        <line
-                          x1="0"
-                          y1="5"
-                          x2="20"
-                          y2="5"
-                          stroke="rgba(255,255,255,0.4)"
-                          strokeWidth="0.5"
-                        />
-                        <line
-                          x1="0"
-                          y1="10"
-                          x2="20"
-                          y2="10"
-                          stroke="rgba(255,255,255,0.3)"
-                          strokeWidth="0.5"
-                        />
-                        <line
-                          x1="0"
-                          y1="15"
-                          x2="20"
-                          y2="15"
-                          stroke="rgba(255,255,255,0.4)"
-                          strokeWidth="0.5"
-                        />
-                      </>
-                    ))}
-                  {currentVoice.planetColor.toLowerCase().includes("cloud") && (
-                    <>
-                      <ellipse
-                        cx="10"
-                        cy="10"
-                        rx="8"
-                        ry="3"
-                        fill="rgba(255,255,255,0.3)"
-                      />
-                    </>
-                  )}
-                  {currentVoice.planetColor
-                    .toLowerCase()
-                    .includes("streak") && (
-                    <>
-                      <line
-                        x1="0"
-                        y1="8"
-                        x2="20"
-                        y2="12"
-                        stroke="rgba(139,0,0,0.4)"
-                        strokeWidth="2"
-                      />
-                    </>
-                  )}
-                  {currentVoice.planetColor.toLowerCase().includes("ridge") && (
-                    <>
-                      <rect
-                        x="0"
-                        y="8"
-                        width="20"
-                        height="2"
-                        fill="rgba(255,255,255,0.5)"
-                      />
-                      <rect
-                        x="0"
-                        y="13"
-                        width="20"
-                        height="1"
-                        fill="rgba(255,255,255,0.3)"
-                      />
-                    </>
-                  )}
-                </pattern>
-              </defs>
-              <circle
-                cx="100"
-                cy="100"
-                r="70"
-                fill={`url(#planetGradient-${currentVoiceIndex})`}
-                stroke={getBaseColorFromDescription(currentVoice.planetColor)}
-                strokeWidth="2"
-                opacity="0.9"
-              />
-              {/* Apply pattern overlay */}
-              <circle
-                cx="100"
-                cy="100"
-                r="70"
-                fill={`url(#pattern-${currentVoiceIndex})`}
-                opacity="0.7"
-              />
-              {/* Add some random surface features based on planet name */}
-              {currentVoice.planetName.includes("Erythos") && (
-                <>
-                  <ellipse
-                    cx="70"
-                    cy="85"
-                    rx="12"
-                    ry="15"
-                    fill="rgba(139,0,0,0.4)"
-                  />
-                  <ellipse
-                    cx="120"
-                    cy="105"
-                    rx="15"
-                    ry="10"
-                    fill="rgba(139,0,0,0.3)"
-                  />
-                </>
-              )}
-              {currentVoice.planetName.includes("Zenthara") && (
-                <>
-                  <circle cx="80" cy="95" r="8" fill="rgba(60,20,10,0.5)" />
-                  <circle cx="110" cy="110" r="6" fill="rgba(60,20,10,0.4)" />
-                  <circle cx="95" cy="80" r="5" fill="rgba(60,20,10,0.3)" />
-                </>
-              )}
-              {currentVoice.planetName.includes("Kalmora") && (
-                <>
-                  <ellipse
-                    cx="85"
-                    cy="90"
-                    rx="18"
-                    ry="22"
-                    fill="rgba(34,139,34,0.5)"
-                  />
-                  <ellipse
-                    cx="115"
-                    cy="110"
-                    rx="15"
-                    ry="18"
-                    fill="rgba(34,139,34,0.4)"
-                  />
-                </>
-              )}
-              {/* Atmosphere glow */}
-              <circle
-                cx="100"
-                cy="100"
-                r="75"
-                fill="none"
-                stroke={getBaseColorFromDescription(currentVoice.planetColor)}
-                strokeWidth="1"
-                opacity="0.3"
-              />
-            </svg>
-          </div>
-        </div>
-        <div className="other-screen-container">
-          <img
-            src="/Assets/OtherScreen2.png"
-            alt="Other Screen"
-            className="other-screen-image"
-          />
-          <div
-            className={`screen-text ${isTransitioning ? "transitioning" : ""} ${
-              isDeleting ? "deleting" : ""
-            }`}
-          >
-            <div className="screen-planet-wrapper">
-              <div
-                className="screen-planet-name clickable-name"
-                onClick={handleNameClick}
-              >
-                {currentVoice.name}
-              </div>
-              {isPlayingAudio && (
-                <div className="audio-wave">
-                  <div className="wave-bar"></div>
-                  <div className="wave-bar"></div>
-                  <div className="wave-bar"></div>
-                  <div className="wave-bar"></div>
-                  <div className="wave-bar"></div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="bottom-section">
-        <img
-          src="/Assets/BrokenGeolocator.png"
-          alt="Broken Geolocator"
-          className="geolocator-image"
-        />
-
-        <img
-          src="/Assets/SelectorBase.png"
-          alt="Selector Base"
-          className="selector-base-image"
-        />
-
-        <div
-          className="arrow-container arrow-left-container"
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setArrowTooltipPosition({
-              x: e.clientX - rect.left,
-              y: e.clientY - rect.top,
-            });
-          }}
-          onMouseEnter={() => setShowArrowTooltip("prev")}
-          onMouseLeave={() => setShowArrowTooltip(null)}
-        >
-          <img
-            src="/Assets/SelectorLeftArrow.png"
-            alt="Selector Left Arrow"
-            className="selector-left-arrow"
-            onClick={() => handleVoiceChange("prev")}
-          />
-          {showArrowTooltip === "prev" && (
-            <div
-              className="arrow-tooltip"
-              style={{
-                left: `${arrowTooltipPosition.x}px`,
-                top: `${arrowTooltipPosition.y - 40}px`,
-              }}
-            >
-              Previous Planet
-            </div>
-          )}
-        </div>
-
-        <div className="selector-center-buttons">
-          <div
-            className="button-tooltip-container"
-            onMouseMove={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setButtonTooltipPosition({
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top,
-              });
-            }}
-            onMouseEnter={() => setShowButtonTooltip("eject")}
-            onMouseLeave={() => setShowButtonTooltip(null)}
-          >
-            <button
-              className="selector-action-btn remove-btn"
-              onClick={handleRemoveCurrentPlanet}
-              title="Remove planet from call list"
-              disabled={
-                removedPlanets.includes(currentVoiceIndex) || isTransmitterClose
-              }
-            >
-              ✕
-            </button>
-            {showButtonTooltip === "eject" && (
-              <div
-                className="button-tooltip eject-tooltip"
-                style={{
-                  left: `${buttonTooltipPosition.x}px`,
-                  top: `${buttonTooltipPosition.y - 40}px`,
-                }}
-              >
-                Eject Planet
-              </div>
-            )}
-          </div>
-
-          <div
-            className="button-tooltip-container"
-            onMouseMove={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setButtonTooltipPosition({
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top,
-              });
-            }}
-            onMouseEnter={() => setShowButtonTooltip("choose")}
-            onMouseLeave={() => setShowButtonTooltip(null)}
-          >
-            <button
-              className="selector-action-btn select-btn"
-              onClick={handleSelectPlanet}
-              title="Select this planet to land"
-              disabled={isTransmitterClose}
-            >
-              ✓
-            </button>
-            {showButtonTooltip === "choose" && (
-              <div
-                className="button-tooltip choose-tooltip"
-                style={{
-                  left: `${buttonTooltipPosition.x}px`,
-                  top: `${buttonTooltipPosition.y - 40}px`,
-                }}
-              >
-                Choose Planet
-              </div>
-            )}
-          </div>
-
-          {isDatabaseOpen && (
-            <button
-              className="selector-action-btn goto-btn"
-              onClick={handleGoToDatabasePlanet}
-              title="Go to selected database planet"
-            >
-              →
-            </button>
-          )}
-        </div>
-
-        <div
-          className="arrow-container arrow-right-container"
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setArrowTooltipPosition({
-              x: e.clientX - rect.left,
-              y: e.clientY - rect.top,
-            });
-          }}
-          onMouseEnter={() => setShowArrowTooltip("next")}
-          onMouseLeave={() => setShowArrowTooltip(null)}
-        >
-          <img
-            src="/Assets/SelectorRightArrow.png"
-            alt="Selector Right Arrow"
-            className="selector-right-arrow"
-            onClick={() => handleVoiceChange("next")}
-          />
-          {showArrowTooltip === "next" && (
-            <div
-              className="arrow-tooltip"
-              style={{
-                left: `${arrowTooltipPosition.x}px`,
-                top: `${arrowTooltipPosition.y - 40}px`,
-              }}
-            >
-              Next Planet
-            </div>
-          )}
-        </div>
-
-        <img src="/Assets/Radio.png" alt="Radio" className="radio-image" />
-        <div className="transmitter-container">
-          <img
-            src="/Assets/TransmitterFar.png"
-            alt="Transmitter"
-            className={`transmitter-image ${
-              isTransmitterClose ? "hidden" : ""
-            }`}
-            onClick={() => {
-              const audio = new Audio("/Audio/RadioOn.mp3");
-              audio.play();
-              setIsTransmitterClose(true);
-            }}
-          />
-          <img
-            src="/Assets/TransmitterClose.png"
-            alt="Transmitter Close"
-            className={`transmitter-close ${
-              isTransmitterClose ? "visible" : ""
-            }`}
-            onClick={() => {
-              const audio = new Audio("/Audio/RadioOff.mp3");
-              audio.play();
-              setIsTransmitterClose(false);
-            }}
-          />
-          <div
-            className={`transmitter-dot ${
-              isRecording && isTransmitterClose ? "recording" : ""
-            }`}
-          />
-        </div>
-        {isProcessing && (
-          <div className="wifi-loading">
-            <div className="wifi-arc wifi-arc-1"></div>
-            <div className="wifi-arc wifi-arc-2"></div>
-            <div className="wifi-arc wifi-arc-3"></div>
-            <div className="wifi-dot"></div>
-          </div>
-        )}
-      </div>
-      <img src="/Assets/Base.png" alt="Base" className="base-image" />
-      <audio
-        ref={audioRef}
-        onEnded={handleAudioEnded}
-        style={{ display: "none" }}
-      />
-
-      {/* Win/Lose Modal */}
-      {gameOver && (
-        <div className="game-over-modal-overlay">
-          <div className="game-over-modal">
-            {gameOver === "win" ? (
-              <>
-                <h1 className="game-over-title win-title">🎉 SUCCESS! 🎉</h1>
-                <p className="game-over-message">
-                  You found the real researcher at {currentVoice.planetName}!
-                  <br />
-                  Your ship has landed safely.
-                </p>
-              </>
-            ) : (
-              <>
-                <h1 className="game-over-title lose-title">
-                  💥 MISSION FAILED 💥
-                </h1>
-                <p className="game-over-message">
-                  {currentVoice.planetName} was an impostor!
-                  <br />
-                  Your ship crashed on landing.
-                </p>
-              </>
-            )}
-            <button className="restart-button" onClick={handleRestart}>
-              Play Again
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Chat Log Modal */}
-      {isChatLogOpen && (
-        <div className="database-modal-overlay" onClick={() => setIsChatLogOpen(false)}>
-          <div className="database-modal chat-log-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close-button" onClick={() => setIsChatLogOpen(false)}>
-              ✕
-            </button>
-            <div className="database-modal-content">
-              <h2>Conversation History - {currentVoice?.name}</h2>
-              <div className="chat-log-container">
-                {allChatLogs.length === 0 ? (
-                  <p className="no-logs">No conversation history with {currentVoice?.name} yet.</p>
-                ) : (
-                  allChatLogs.map((log, index) => (
-                    <div key={`${log.gameId}-${index}`} className="chat-log-entry">
-                      <div className="chat-log-header">
-                        <span className="log-researcher">{log.researcherName}</span>
-                        <span className="log-planet">({log.planetName})</span>
-                        {index === 0 && log.gameId === currentGameSession?.gameId && (
-                          <span className="log-outcome current">
-                            ⚡ Current
-                          </span>
-                        )}
-                        {log.outcome && (
-                          <span className={`log-outcome ${log.outcome}`}>
-                            {log.outcome === 'win' ? '✓ Real' : '✗ Impostor'}
-                          </span>
-                        )}
-                      </div>
-                      <div className="log-timestamp">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </div>
-                      <div className="log-messages">
-                        {log.messages.map((msg, msgIndex) => (
-                          <div key={msgIndex} className={`log-message ${msg.role}`}>
-                            <span className="message-role">
-                              {msg.role === 'user' ? 'You' : log.researcherName}:
-                            </span>
-                            <span className="message-content">{msg.content}</span>
-                          </div>
-                        ))}
-                      </div>
                     </div>
-                  ))
+
+                    <div
+                        className="button-tooltip-container"
+                        onMouseMove={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setButtonTooltipPosition({
+                                x: e.clientX - rect.left,
+                                y: e.clientY - rect.top,
+                            });
+                        }}
+                        onMouseEnter={() => setShowButtonTooltip("choose")}
+                        onMouseLeave={() => setShowButtonTooltip(null)}
+                    >
+                        <button className="selector-action-btn select-btn" onClick={handleSelectPlanet} title="Select this planet to land" disabled={isTransmitterClose}>
+                            ✓
+                        </button>
+                        {showButtonTooltip === "choose" && (
+                            <div
+                                className="button-tooltip choose-tooltip"
+                                style={{
+                                    left: `${buttonTooltipPosition.x}px`,
+                                    top: `${buttonTooltipPosition.y - 40}px`,
+                                }}
+                            >
+                                Choose Planet
+                            </div>
+                        )}
+                    </div>
+
+                    {isDatabaseOpen && (
+                        <button className="selector-action-btn goto-btn" onClick={handleGoToDatabasePlanet} title="Go to selected database planet">
+                            →
+                        </button>
+                    )}
+                </div>
+
+                <div
+                    className="arrow-container arrow-right-container"
+                    onMouseMove={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setArrowTooltipPosition({
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top,
+                        });
+                    }}
+                    onMouseEnter={() => setShowArrowTooltip("next")}
+                    onMouseLeave={() => setShowArrowTooltip(null)}
+                >
+                    <img src="/Assets/SelectorRightArrow.png" alt="Selector Right Arrow" className="selector-right-arrow" onClick={() => handleVoiceChange("next")} />
+                    {showArrowTooltip === "next" && (
+                        <div
+                            className="arrow-tooltip"
+                            style={{
+                                left: `${arrowTooltipPosition.x}px`,
+                                top: `${arrowTooltipPosition.y - 40}px`,
+                            }}
+                        >
+                            Next Planet
+                        </div>
+                    )}
+                </div>
+
+                <img src="/Assets/Radio.png" alt="Radio" className="radio-image" />
+                <div className="transmitter-container">
+                    <img
+                        src="/Assets/TransmitterFar.png"
+                        alt="Transmitter"
+                        className={`transmitter-image ${isTransmitterClose ? "hidden" : ""}`}
+                        onClick={() => {
+                            const audio = new Audio("/Audio/RadioOn.mp3");
+                            audio.play();
+                            setIsTransmitterClose(true);
+                        }}
+                    />
+                    <img
+                        src="/Assets/TransmitterClose.png"
+                        alt="Transmitter Close"
+                        className={`transmitter-close ${isTransmitterClose ? "visible" : ""}`}
+                        onClick={() => {
+                            const audio = new Audio("/Audio/RadioOff.mp3");
+                            audio.play();
+                            setIsTransmitterClose(false);
+                        }}
+                    />
+                    <div className={`transmitter-dot ${isRecording && isTransmitterClose ? "recording" : ""}`} />
+                </div>
+                {isProcessing && (
+                    <div className="wifi-loading">
+                        <div className="wifi-arc wifi-arc-1"></div>
+                        <div className="wifi-arc wifi-arc-2"></div>
+                        <div className="wifi-arc wifi-arc-3"></div>
+                        <div className="wifi-dot"></div>
+                    </div>
                 )}
-              </div>
             </div>
-          </div>
+            <img src="/Assets/Base.png" alt="Base" className="base-image" />
+            <audio ref={audioRef} onEnded={handleAudioEnded} style={{ display: "none" }} />
+
+            {/* Win/Lose Modal */}
+            {gameOver && (
+                <div className="game-over-modal-overlay">
+                    <div className="game-over-modal">
+                        {gameOver === "win" ? (
+                            <>
+                                <h1 className="game-over-title win-title">🎉 SUCCESS! 🎉</h1>
+                                <p className="game-over-message">
+                                    You found the real researcher at {currentVoice.planetName}!
+                                    <br />
+                                    Your ship has landed safely.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <h1 className="game-over-title lose-title">💥 MISSION FAILED 💥</h1>
+                                <p className="game-over-message">
+                                    {currentVoice.planetName} was an impostor!
+                                    <br />
+                                    Your ship crashed on landing.
+                                </p>
+                            </>
+                        )}
+                        <button className="restart-button" onClick={handleRestart}>
+                            Play Again
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Chat Log Modal */}
+            {isChatLogOpen && (
+                <div className="database-modal-overlay" onClick={() => setIsChatLogOpen(false)}>
+                    <div className="database-modal chat-log-modal" onClick={(e) => e.stopPropagation()}>
+                        <button className="close-button" onClick={() => setIsChatLogOpen(false)}>
+                            ✕
+                        </button>
+                        <div className="database-modal-content">
+                            <h2>Conversation History - {currentVoice?.name}</h2>
+                            <div className="chat-log-container">
+                                {allChatLogs.length === 0 ? (
+                                    <p className="no-logs">No conversation history with {currentVoice?.name} yet.</p>
+                                ) : (
+                                    allChatLogs.map((log, index) => (
+                                        <div key={`${log.gameId}-${index}`} className="chat-log-entry">
+                                            <div className="chat-log-header">
+                                                <span className="log-researcher">{log.researcherName}</span>
+                                                <span className="log-planet">({log.planetName})</span>
+                                                {index === 0 && log.gameId === currentGameSession?.gameId && <span className="log-outcome current">⚡ Current</span>}
+                                                {log.outcome && <span className={`log-outcome ${log.outcome}`}>{log.outcome === "win" ? "✓ Real" : "✗ Impostor"}</span>}
+                                            </div>
+                                            <div className="log-timestamp">{new Date(log.timestamp).toLocaleString()}</div>
+                                            <div className="log-messages">
+                                                {log.messages.map((msg, msgIndex) => (
+                                                    <div key={msgIndex} className={`log-message ${msg.role}`}>
+                                                        <span className="message-role">{msg.role === "user" ? "You" : log.researcherName}:</span>
+                                                        <span className="message-content">{msg.content}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
 export default App;
