@@ -1153,6 +1153,12 @@ function App() {
                         }}
                         onMouseEnter={playHoverSound}
                     />
+                    {isTransmitterClose && (
+                        <div className="space-bar-indicator">
+                            <div className="space-bar-icon">SPACE</div>
+                            <div className="space-bar-text">Hold to Talk</div>
+                        </div>
+                    )}
                 </div>
                 {isProcessing && (
                     <div className="wifi-loading">
