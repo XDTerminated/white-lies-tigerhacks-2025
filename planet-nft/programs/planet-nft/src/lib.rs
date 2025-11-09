@@ -23,10 +23,11 @@ pub mod planet_nft {
         msg!("Metadata URI: {}", metadata_uri);
 
         // Mint 1 token to the token account
+        // Use mint_authority PDA seeds for signing
         let seeds = &[
-            b"planet_nft",
+            b"mint_authority",
             planet_id.as_bytes(),
-            &[ctx.bumps.mint],
+            &[ctx.bumps.mint_authority],
         ];
         let signer = &[&seeds[..]];
 
@@ -68,12 +69,13 @@ pub mod planet_nft {
         let system_program_info = &ctx.accounts.system_program.to_account_info();
         let rent_info = &ctx.accounts.rent.to_account_info();
 
+        let creators = vec![];
         let metadata_data_v2 = DataV2 {
             name: planet_name.clone(),
             symbol: "PLANET".to_string(),
             uri: metadata_uri.clone(),
             seller_fee_basis_points: 0,
-            creators: None,
+            creators: Some(creators),
             collection: None,
             uses: None,
         };
@@ -103,7 +105,7 @@ pub mod planet_nft {
 }
 
 #[derive(Accounts)]
-#[instruction(planet_id: String)]
+#[instruction(planet_id: String, planet_name: String, metadata_uri: String)]
 pub struct MintPlanetNft<'info> {
     #[account(
         init,
@@ -115,9 +117,9 @@ pub struct MintPlanetNft<'info> {
     )]
     pub mint: Account<'info, Mint>,
 
-    /// CHECK: We're using PDA as mint authority
+    /// CHECK: Mint authority PDA - uses separate seeds from mint
     #[account(
-        seeds = [b"planet_nft", planet_id.as_bytes()],
+        seeds = [b"mint_authority", planet_id.as_bytes()],
         bump
     )]
     pub mint_authority: UncheckedAccount<'info>,
@@ -126,7 +128,7 @@ pub struct MintPlanetNft<'info> {
         init,
         payer = payer,
         token::mint = mint,
-        token::authority = payer,
+        token::authority = mint_authority,
     )]
     pub token_account: Account<'info, TokenAccount>,
 

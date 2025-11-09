@@ -1,0 +1,134 @@
+{
+  "address": "Fb7uNXapsRwUdsvGDedesLS7D1A4AHk6CeMvrrvTVqwf",
+  "errors": [
+    {
+      "code": 6000,
+      "msg": "Invalid metadata account",
+      "name": "InvalidMetadataAccount"
+    }
+  ],
+  "instructions": [
+    {
+      "accounts": [
+        {
+          "name": "mint",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110,
+                  101,
+                  116,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "planet_id"
+              }
+            ]
+          },
+          "writable": true
+        },
+        {
+          "name": "mint_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "planet_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_account",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "name": "metadata",
+          "writable": true
+        },
+        {
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+          "name": "token_metadata_program"
+        },
+        {
+          "name": "payer",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "SysvarRent111111111111111111111111111111111",
+          "name": "rent"
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "name": "system_program"
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "planet_id",
+          "type": "string"
+        },
+        {
+          "name": "planet_name",
+          "type": "string"
+        },
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        }
+      ],
+      "discriminator": [
+        254,
+        255,
+        188,
+        165,
+        3,
+        51,
+        225,
+        198
+      ],
+      "name": "mint_planet_nft"
+    }
+  ],
+  "metadata": {
+    "description": "Planet NFT minting program for Solana",
+    "name": "planet_nft",
+    "spec": "0.1.0",
+    "version": "0.1.0"
+  }
+}

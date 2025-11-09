@@ -27,7 +27,7 @@ describe("planet-nft", () => {
     );
 
     const [mintAuthorityPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("planet_nft"), Buffer.from(planetId)],
+      [Buffer.from("mint_authority"), Buffer.from(planetId)],
       program.programId
     );
 
