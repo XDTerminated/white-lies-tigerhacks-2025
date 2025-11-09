@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { getGameSessions, type GameSession } from "./services/api";
 import { getBaseColorFromDescription } from "./utils/planetGenerator";
+import { NFTDashboard } from "./components/NFTDashboard";
 import "./DashboardScreen.css";
 
 interface DashboardScreenProps {
@@ -14,6 +15,7 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
     const [sessions, setSessions] = useState<GameSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'missions' | 'nfts'>('missions');
 
     useEffect(() => {
         async function loadSessions() {
@@ -217,8 +219,27 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
             </button>
 
             <div className="dashboard-content">
-                <h1 className="dashboard-title">MISSION HISTORY DATABASE</h1>
-                <p className="dashboard-subtitle">Past Planetary Research Missions</p>
+                <div className="dashboard-tabs">
+                    <button
+                        className={`dashboard-tab ${activeTab === 'missions' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('missions')}
+                    >
+                        <span>📊</span>
+                        <span>Mission History</span>
+                    </button>
+                    <button
+                        className={`dashboard-tab ${activeTab === 'nfts' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('nfts')}
+                    >
+                        <span>🪐</span>
+                        <span>Planet NFTs</span>
+                    </button>
+                </div>
+
+                {activeTab === 'missions' && (
+                    <>
+                        <h1 className="dashboard-title">MISSION HISTORY DATABASE</h1>
+                        <p className="dashboard-subtitle">Past Planetary Research Missions</p>
 
                 {isLoading && (
                     <div className="dashboard-loading">
@@ -271,9 +292,17 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                     </div>
                 )}
 
-                <button className="start-mission-btn" onClick={onStartNewGame}>
-                    START NEW MISSION
-                </button>
+                        <button className="start-mission-btn" onClick={onStartNewGame}>
+                            START NEW MISSION
+                        </button>
+                    </>
+                )}
+
+                {activeTab === 'nfts' && (
+                    <div className="nft-dashboard-wrapper">
+                        <NFTDashboard />
+                    </div>
+                )}
             </div>
         </div>
     );
