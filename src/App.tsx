@@ -8,6 +8,8 @@ import { generateRandomPlanets, getBaseColorFromDescription } from "./utils/plan
 import { useUser } from "./contexts/UserContext";
 import { addChatMessage, updatePlayerStats, createGameSession, endGameSession, saveGameChatLog, getResearcherChatLogs } from "./services/api";
 import { IntroScene } from "./IntroScene";
+import DashboardScreen from "./DashboardScreen";
+import GameSessionDetail from "./GameSessionDetail";
 import "./App.css";
 
 interface Message {
@@ -37,9 +39,11 @@ interface GameSession {
 function App() {
     // Trigger planet animation when game scene first loads
     const { logout, user } = useAuth0();
-    const { refreshStats } = useUser();
-    const [showIntro, setShowIntro] = useState(true);
+    const { refreshStats, playerStats, isLoading: userLoading } = useUser();
+    const [showIntro, setShowIntro] = useState<boolean | null>(null); // null = checking, true = show intro, false = skip intro
     const [introComplete, setIntroComplete] = useState(false);
+    const [showDashboard, setShowDashboard] = useState(false);
+    const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
     // Initialize planets synchronously so they're available on first render
     const [planets, setPlanets] = useState<Voice[]>(() => generateRandomPlanets(5));
     // Create randomized order for database display
@@ -96,7 +100,30 @@ function App() {
     const lastMultipleOf5Ref = useRef<number>(30); // Track last multiple of 5 we crossed
     const gameSessionCreatedRef = useRef<string | null>(null); // Track which game session was created in backend
 
-    // Trigger planet animation when game scene first loads
+    // Check if user is new and decide whether to show intro
+    useEffect(() => {
+        // Wait until playerStats are loaded
+        if (userLoading || !playerStats) {
+            return;
+        }
+
+        // Check if user has never played before (all stats are 0)
+        const isNewUser =
+            playerStats.correct_guesses === 0 &&
+            playerStats.correct_ejections === 0 &&
+            playerStats.incorrect_guesses === 0;
+
+        if (isNewUser) {
+            // New user: show intro
+            setShowIntro(true);
+        } else {
+            // Returning user: skip intro, go straight to game
+            setShowIntro(false);
+            setIntroComplete(true);
+        }
+
+        console.log(isNewUser ? '🆕 New user detected - showing intro' : '👋 Returning user - skipping intro');
+    }, [playerStats, userLoading]);
 
     const handleIntroComplete = () => {
         setShowIntro(false);
@@ -167,33 +194,8 @@ function App() {
         };
     }, [gameOver, showIntro]);
 
-    // Save current planet's messages to game session whenever messages change
-    useEffect(() => {
-        if (currentVoice && currentGameSession && messages.length > 0) {
-            setCurrentGameSession((prev) => {
-                if (!prev) return prev;
-
-                // Only update if messages have actually changed
-                const existingMessages = prev.chatsByPlanet[currentVoice.name];
-                if (existingMessages && existingMessages.length === messages.length) {
-                    // Check if the last message is the same
-                    const lastExisting = existingMessages[existingMessages.length - 1];
-                    const lastNew = messages[messages.length - 1];
-                    if (lastExisting.content === lastNew.content && lastExisting.role === lastNew.role) {
-                        return prev; // No change needed
-                    }
-                }
-
-                return {
-                    ...prev,
-                    chatsByPlanet: {
-                        ...prev.chatsByPlanet,
-                        [currentVoice.name]: [...messages],
-                    },
-                };
-            });
-        }
-    }, [messages, currentVoice?.name, currentGameSession?.gameId, currentVoice, currentGameSession]);
+    // Note: Messages are now saved directly in handleUserMessage to prevent race conditions
+    // when switching planets while a conversation is in progress
 
     // Function to save all chat logs to localStorage
     const saveChatLogs = useCallback(
@@ -393,38 +395,43 @@ function App() {
     const handleUserMessage = async (userMessage: string) => {
         if (!userMessage.trim() || isProcessing || !currentVoice) return;
 
+        // Capture the current voice at the start to prevent race conditions
+        const activeVoice = currentVoice;
+        const activeVoiceName = activeVoice.name;
+
         console.log("🎤 User message received:", userMessage);
-        
+
         // Calculate oxygen cost based on message length (1-2% per message)
         const wordCount = userMessage.trim().split(/\s+/).length;
         const baseOxygenCost = 0.01 + (wordCount * 0.0005); // Start at 1% + 0.05% per word
         const oxygenCost = Math.min(baseOxygenCost, 0.02); // Cap at 2%
-        
+
         // Deduct oxygen
         setOxygenLevel((prevLevel) => {
             const newLevel = Math.max(0, prevLevel - oxygenCost);
             console.log(`💨 Oxygen: ${(prevLevel * 100).toFixed(1)}% → ${(newLevel * 100).toFixed(1)}% (cost: ${(oxygenCost * 100).toFixed(1)}% for ${wordCount} words)`);
-            
+
             // Check if we crossed a multiple of 5
             const prevPercentage = Math.floor(prevLevel * 100);
             const newPercentage = Math.floor(newLevel * 100);
-            
+
             if (prevPercentage !== newPercentage && newPercentage % 5 === 0 && newPercentage < lastMultipleOf5Ref.current) {
                 lastMultipleOf5Ref.current = newPercentage;
                 setFlashRed(true);
                 setTimeout(() => setFlashRed(false), 5000);
             }
-            
+
             // Check if oxygen depleted
             if (newLevel <= 0 && !gameOver) {
                 setGameOver("oxygen");
             }
-            
+
             return newLevel;
         });
-        
+
         setIsProcessing(true);
-        setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+        const userMsg: Message = { role: "user", content: userMessage };
+        setMessages((prev) => [...prev, userMsg]);
 
         // Send user message to backend
         if (user?.email) {
@@ -440,22 +447,35 @@ function App() {
             // Get AI response
             console.log("🤖 Requesting AI response...");
             const aiResponse = await getChatResponse(userMessage, {
-                planetName: currentVoice.planetName,
-                avgTemp: currentVoice.avgTemp,
-                planetColor: currentVoice.planetColor,
-                oceanCoverage: currentVoice.oceanCoverage,
-                gravity: currentVoice.gravity,
-                name: currentVoice.name,
-                isResearcher: currentVoice.isResearcher,
-                correctFacts: currentVoice.correctFacts,
+                planetName: activeVoice.planetName,
+                avgTemp: activeVoice.avgTemp,
+                planetColor: activeVoice.planetColor,
+                oceanCoverage: activeVoice.oceanCoverage,
+                gravity: activeVoice.gravity,
+                name: activeVoice.name,
+                isResearcher: activeVoice.isResearcher,
+                correctFacts: activeVoice.correctFacts,
             });
             console.log("✅ AI response received:", aiResponse);
-            setMessages((prev) => [...prev, { role: "assistant", content: aiResponse }]);
+            const assistantMsg: Message = { role: "assistant", content: aiResponse };
+            setMessages((prev) => [...prev, assistantMsg]);
+
+            // Update game session with messages for the active voice
+            setCurrentGameSession((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    chatsByPlanet: {
+                        ...prev.chatsByPlanet,
+                        [activeVoiceName]: [...(prev.chatsByPlanet[activeVoiceName] || []), userMsg, assistantMsg],
+                    },
+                };
+            });
 
             // Send AI response to backend
             if (user?.email) {
                 try {
-                    await addChatMessage(user.email, currentVoice.name, aiResponse);
+                    await addChatMessage(user.email, activeVoice.name, aiResponse);
                     console.log("📤 AI response sent to backend");
                 } catch (error) {
                     console.error("❌ Failed to send AI response to backend:", error);
@@ -464,7 +484,7 @@ function App() {
 
             // Convert to speech and play
             console.log("🔊 Converting text to speech...");
-            const audioUrl = await textToSpeech(aiResponse, currentVoice.id);
+            const audioUrl = await textToSpeech(aiResponse, activeVoice.id);
             console.log("✅ Audio URL generated:", audioUrl);
 
             if (audioRef.current) {
@@ -576,28 +596,27 @@ function App() {
             // Start delete animation
             setIsDeleting(true);
 
-            setTimeout(() => {
-                const newRemovedPlanets = [...removedPlanets, currentVoiceIndex];
-                setRemovedPlanets(newRemovedPlanets);
+            // Immediately remove planet without delay
+            const newRemovedPlanets = [...removedPlanets, currentVoiceIndex];
+            setRemovedPlanets(newRemovedPlanets);
 
-                // Find next available planet
-                let nextIndex = currentVoiceIndex;
-                let attempts = 0;
-                const maxAttempts = planets.length;
+            // Find next available planet
+            let nextIndex = currentVoiceIndex;
+            let attempts = 0;
+            const maxAttempts = planets.length;
 
-                do {
-                    nextIndex = nextIndex === planets.length - 1 ? 0 : nextIndex + 1;
-                    attempts++;
-                } while (newRemovedPlanets.includes(nextIndex) && attempts < maxAttempts);
+            do {
+                nextIndex = nextIndex === planets.length - 1 ? 0 : nextIndex + 1;
+                attempts++;
+            } while (newRemovedPlanets.includes(nextIndex) && attempts < maxAttempts);
 
-                // Move to next available planet if one exists
-                if (!newRemovedPlanets.includes(nextIndex)) {
-                    setCurrentVoiceIndex(nextIndex);
-                }
+            // Move to next available planet if one exists
+            if (!newRemovedPlanets.includes(nextIndex)) {
+                setCurrentVoiceIndex(nextIndex);
+            }
 
-                // End delete animation
-                setTimeout(() => setIsDeleting(false), 50);
-            }, 500); // Duration of delete animation
+            // End delete animation quickly
+            setTimeout(() => setIsDeleting(false), 50);
         }
     };
 
@@ -759,18 +778,42 @@ function App() {
     };
 
     const handleRestart = () => {
-        // Save current game session before restarting (optional - in case they restart without finishing)
+        // Save current game session before restarting
         saveChatLogs();
 
         // Reset game state
         setGameOver(null);
+
+        // Return to dashboard instead of restarting immediately
+        setShowDashboard(true);
+        setShowIntro(false);
+        setIntroComplete(true);
+    };
+
+    const handleStartNewGame = () => {
+        // Reset all game state for new game
         setRemovedPlanets([]);
         setCurrentVoiceIndex(0);
         setMessages([]);
         setOxygenLevel(0.3); // Reset oxygen to 30%
         lastMultipleOf5Ref.current = 30; // Reset the multiple tracker
         setFlashRed(false);
-        setShowIntro(true); // Show intro scene again
+        setShowDashboard(false);
+
+        // Check if user is new - only show intro for brand new users
+        const isNewUser = playerStats &&
+            playerStats.correct_guesses === 0 &&
+            playerStats.correct_ejections === 0 &&
+            playerStats.incorrect_guesses === 0;
+
+        if (isNewUser) {
+            setShowIntro(true);
+            setIntroComplete(false);
+        } else {
+            // Returning user - skip intro and go straight to game
+            setShowIntro(false);
+            setIntroComplete(true);
+        }
 
         // Generate new random planets
         const randomPlanets = generateRandomPlanets(5);
@@ -799,6 +842,16 @@ function App() {
                     gameSessionCreatedRef.current = null; // Reset on error
                 });
         }
+    };
+
+    const handleViewGameDetails = (gameId: string) => {
+        setSelectedGameId(gameId);
+        setShowDashboard(false);
+    };
+
+    const handleBackToDashboard = () => {
+        setSelectedGameId(null);
+        setShowDashboard(true);
     };
 
     const handleCloseChatLog = () => {
@@ -1395,7 +1448,39 @@ function App() {
     );
 
 
-    // Show intro scene first with game scene in background
+    // Show loading while checking if user is new
+    if (showIntro === null) {
+        return (
+            <div className="app" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <div style={{ color: '#00ff00', fontFamily: 'Courier New', fontSize: '1.5rem', textShadow: '0 0 10px rgba(0, 255, 0, 0.8)' }}>
+                    Loading...
+                </div>
+            </div>
+        );
+    }
+
+    // Show game session detail view
+    if (selectedGameId) {
+        return (
+            <GameSessionDetail
+                gameId={selectedGameId}
+                onBack={handleBackToDashboard}
+                onStartNewGame={handleStartNewGame}
+            />
+        );
+    }
+
+    // Show dashboard for returning users
+    if (showDashboard) {
+        return (
+            <DashboardScreen
+                onStartNewGame={handleStartNewGame}
+                onViewSession={handleViewGameDetails}
+            />
+        );
+    }
+
+    // Show intro scene first with game scene in background (only for new users)
     if (showIntro) {
         return <IntroScene onComplete={handleIntroComplete} gameSceneContent={gameSceneContent} />;
     }

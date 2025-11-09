@@ -63,6 +63,21 @@ export interface GameChatLog {
   messages: GameChatMessage[];
 }
 
+export interface GameSessionWithChats {
+  game_id: string;
+  email: string;
+  start_time: string;
+  end_time?: string;
+  outcome?: string;
+  selected_researcher?: string;
+  selected_planet?: string;
+  chat_logs: {
+    researcher_name: string;
+    planet_name: string;
+    messages: GameChatMessage[];
+  }[];
+}
+
 // ============================================================================
 // User Management
 // ============================================================================
@@ -279,6 +294,32 @@ export async function getResearcherChatLogs(
 
   if (!response.ok) {
     throw new Error(`Failed to get researcher chat logs: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get all game sessions for a user
+ */
+export async function getGameSessions(email: string): Promise<GameSession[]> {
+  const response = await fetch(`${API_BASE_URL}/api/game-sessions/${email}`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to get game sessions: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get complete game session with all chat logs
+ */
+export async function getGameSessionWithChats(gameId: string): Promise<GameSessionWithChats> {
+  const response = await fetch(`${API_BASE_URL}/api/game-sessions/${gameId}/chats`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to get game session with chats: ${response.statusText}`);
   }
 
   return response.json();

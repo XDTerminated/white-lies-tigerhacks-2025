@@ -1,0 +1,314 @@
+.dashboard-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    padding: 2rem;
+}
+
+.dashboard-container::-webkit-scrollbar {
+    display: none;
+}
+
+.logout-button-dashboard {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: transparent;
+    color: #00ff00;
+    border: 2px solid #00ff00;
+    border-radius: 6px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+    z-index: 1000;
+}
+
+.logout-button-dashboard:hover {
+    background: rgba(0, 255, 0, 0.1);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.dashboard-content {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    padding-bottom: 2rem;
+}
+
+.dashboard-content::-webkit-scrollbar {
+    display: none;
+}
+
+.dashboard-title {
+    color: #00ff00;
+    font-size: 2.5rem;
+    margin: 2rem 0 0.5rem 0;
+    text-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+    font-weight: bold;
+    text-align: center;
+    letter-spacing: 2px;
+}
+
+.dashboard-subtitle {
+    color: #00cc00;
+    font-size: 1.1rem;
+    margin: 0 0 3rem 0;
+    opacity: 0.9;
+    text-align: center;
+}
+
+.dashboard-loading,
+.dashboard-error,
+.dashboard-empty {
+    background: rgba(0, 20, 0, 0.85);
+    border: 2px solid #00ff00;
+    border-radius: 8px;
+    padding: 3rem;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+    margin: 2rem 0;
+    width: 100%;
+}
+
+.loading-text,
+.error-text,
+.empty-text {
+    color: #00ff00;
+    font-size: 1.3rem;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+}
+
+.error-text {
+    color: #ff6b6b;
+    text-shadow: 0 0 10px rgba(255, 107, 107, 0.8);
+}
+
+.empty-subtext {
+    color: #00cc00;
+    font-size: 1rem;
+    margin-top: 1rem;
+    opacity: 0.8;
+}
+
+.sessions-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.session-card {
+    background: rgba(0, 20, 0, 0.85);
+    border: 2px solid #00ff00;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.session-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+}
+
+.session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.session-date {
+    color: #00ff00;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.outcome-badge {
+    padding: 0.4rem 1rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.outcome-badge.win {
+    background: rgba(0, 255, 0, 0.2);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+}
+
+.outcome-badge.lose {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff6b6b;
+    border: 1px solid #ff6b6b;
+    box-shadow: 0 0 15px rgba(255, 107, 107, 0.4);
+}
+
+.outcome-badge.oxygen {
+    background: rgba(0, 255, 255, 0.2);
+    color: #00ffff;
+    border: 1px solid #00ffff;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+}
+
+.outcome-badge.pending {
+    background: rgba(255, 255, 0, 0.2);
+    color: #ffff00;
+    border: 1px solid #ffff00;
+    box-shadow: 0 0 15px rgba(255, 255, 0, 0.4);
+}
+
+.session-details {
+    margin-bottom: 1.5rem;
+}
+
+.session-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.session-label {
+    color: #00cc00;
+    font-weight: bold;
+}
+
+.session-value {
+    color: #00ff00;
+}
+
+.view-details-btn {
+    background: transparent;
+    color: #00ff00;
+    border: 2px solid #00ff00;
+    border-radius: 6px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.view-details-btn:hover {
+    background: rgba(0, 255, 0, 0.1);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.start-mission-btn {
+    background: #00ff00;
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 1.25rem 3rem;
+    font-size: 1.3rem;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+.start-mission-btn:hover {
+    background: #00cc00;
+    box-shadow: 0 0 40px rgba(0, 255, 0, 0.8);
+    transform: scale(1.05);
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+    .dashboard-container {
+        padding: 1rem;
+    }
+
+    .dashboard-title {
+        font-size: 2rem;
+        margin-top: 1rem;
+    }
+
+    .dashboard-subtitle {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .session-card {
+        padding: 1.25rem;
+    }
+
+    .session-date {
+        font-size: 1rem;
+    }
+
+    .outcome-badge {
+        font-size: 0.8rem;
+        padding: 0.3rem 0.8rem;
+    }
+
+    .start-mission-btn {
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+    }
+
+    .logout-button-dashboard {
+        top: 1rem;
+        right: 1rem;
+        padding: 0.6rem 1.2rem;
+        font-size: 0.8rem;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .dashboard-title {
+        font-size: 1.5rem;
+    }
+
+    .dashboard-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .session-card {
+        padding: 1rem;
+    }
+
+    .session-row {
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .start-mission-btn {
+        padding: 0.9rem 1.5rem;
+        font-size: 1rem;
+    }
+}
