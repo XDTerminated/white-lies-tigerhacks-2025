@@ -65,6 +65,8 @@ function App() {
     const [currentGameSession, setCurrentGameSession] = useState<GameSession | null>(null);
     const [isChatLogOpen, setIsChatLogOpen] = useState(false);
     const [allChatLogs, setAllChatLogs] = useState<ChatLog[]>([]);
+    const [nameTooltipPosition, setNameTooltipPosition] = useState({ x: 0, y: 0 });
+    const [showNameTooltip, setShowNameTooltip] = useState(false);
     const { isRecording, transcript, startRecording, stopRecording } = useVoiceRecording();
     const audioRef = useRef<HTMLAudioElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -193,10 +195,10 @@ function App() {
                 });
             }
 
-            // Play button click sound
+            // Play transition sound
             if (audioRef.current) {
                 audioRef.current.pause();
-                audioRef.current.src = "/Audio/ButtonClick.mp3";
+                audioRef.current.src = "/Audio/Transition.mp3";
                 audioRef.current.play().catch(console.error);
                 audioRef.current.onended = () => {
                     setIsPlayingAudio(false);
@@ -623,6 +625,10 @@ function App() {
 
             setAllChatLogs(researcherLogs);
             setIsChatLogOpen(true);
+
+            // Play planetary database audio when opening chat log
+            const audio = new Audio("/Audio/Planetary.mp3");
+            audio.play().catch(console.error);
         } catch (error) {
             console.error("❌ Failed to load researcher chat logs:", error);
 
@@ -645,6 +651,10 @@ function App() {
 
             setAllChatLogs(researcherLogs);
             setIsChatLogOpen(true);
+
+            // Play planetary database audio when opening chat log (fallback case)
+            const audio = new Audio("/Audio/Planetary.mp3");
+            audio.play().catch(console.error);
         }
     };
 
@@ -676,6 +686,22 @@ function App() {
         });
     };
 
+    const handleCloseChatLog = () => {
+        // Play button click sound (only if not playing chatbot audio)
+        if (!isPlayingAudio && !isProcessing) {
+            const audio = new Audio("/Audio/ButtonClick.mp3");
+            audio.play().catch(console.error);
+        }
+
+        setIsChatLogOpen(false);
+    };
+
+    const playHoverSound = () => {
+        const audio = new Audio("/Audio/pop.mp3");
+        audio.volume = 0.3; // Lower volume for hover sounds
+        audio.play().catch(console.error);
+    };
+
     // Map database index to actual planet index using randomized order
     const actualDatabasePlanetIndex = databaseOrder.length > 0 ? databaseOrder[databasePlanetIndex] : databasePlanetIndex;
     const databasePlanet = planets.length > 0 ? planets[actualDatabasePlanetIndex] : null;
@@ -687,13 +713,18 @@ function App() {
 
     return (
         <div className="app">
-            <button className="logout-button" onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} title="Logout">
+            <button 
+                className="logout-button" 
+                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} 
+                title="Logout"
+                onMouseEnter={playHoverSound}
+            >
                 Logout
             </button>
             {isDatabaseOpen && (
                 <div className="database-modal-overlay" onClick={handleCloseDatabaseModal}>
                     <div className="database-modal" onClick={(e) => e.stopPropagation()}>
-                        <button className="close-button" onClick={handleCloseDatabaseModal}>
+                        <button className="close-button" onClick={handleCloseDatabaseModal} onMouseEnter={playHoverSound}>
                             ✕
                         </button>
                         <div className="database-modal-content">
@@ -790,10 +821,10 @@ function App() {
 
                             {/* Navigation arrows at bottom */}
                             <div className="database-navigation">
-                                <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("prev")}>
+                                <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("prev")} onMouseEnter={playHoverSound}>
                                     ◄
                                 </button>
-                                <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("next")}>
+                                <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("next")} onMouseEnter={playHoverSound}>
                                     ►
                                 </button>
                             </div>
@@ -811,7 +842,10 @@ function App() {
                             y: e.clientY - rect.top,
                         });
                     }}
-                    onMouseEnter={() => setShowTooltip(true)}
+                    onMouseEnter={() => {
+                        setShowTooltip(true);
+                        playHoverSound();
+                    }}
                     onMouseLeave={() => setShowTooltip(false)}
                 >
                     <img src="/Assets/Database.png" alt="Database" className="database-image" onClick={handleDatabaseClick} />
@@ -914,8 +948,35 @@ function App() {
                     <img src="/Assets/OtherScreen2.png" alt="Other Screen" className="other-screen-image" />
                     <div className={`screen-text ${isTransitioning ? "transitioning" : ""} ${isDeleting ? "deleting" : ""}`}>
                         <div className="screen-planet-wrapper">
-                            <div className="screen-planet-name clickable-name" onClick={handleNameClick}>
+                            <div className="screen-researcher-label">Researcher:</div>
+                            <div 
+                                className="screen-planet-name clickable-name" 
+                                onClick={handleNameClick}
+                                onMouseMove={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setNameTooltipPosition({
+                                        x: e.clientX - rect.left,
+                                        y: e.clientY - rect.top,
+                                    });
+                                }}
+                                onMouseEnter={() => {
+                                    setShowNameTooltip(true);
+                                    playHoverSound();
+                                }}
+                                onMouseLeave={() => setShowNameTooltip(false)}
+                            >
                                 {currentVoice.name}
+                                {showNameTooltip && (
+                                    <div
+                                        className="name-tooltip"
+                                        style={{
+                                            left: `${nameTooltipPosition.x}px`,
+                                            top: `${nameTooltipPosition.y - 40}px`,
+                                        }}
+                                    >
+                                        View Chat History
+                                    </div>
+                                )}
                             </div>
                             {isPlayingAudio && (
                                 <div className="audio-wave">
@@ -944,7 +1005,10 @@ function App() {
                             y: e.clientY - rect.top,
                         });
                     }}
-                    onMouseEnter={() => setShowArrowTooltip("prev")}
+                    onMouseEnter={() => {
+                        setShowArrowTooltip("prev");
+                        playHoverSound();
+                    }}
                     onMouseLeave={() => setShowArrowTooltip(null)}
                 >
                     <img src="/Assets/SelectorLeftArrow.png" alt="Selector Left Arrow" className="selector-left-arrow" onClick={() => handleVoiceChange("prev")} />
@@ -971,7 +1035,10 @@ function App() {
                                 y: e.clientY - rect.top,
                             });
                         }}
-                        onMouseEnter={() => setShowButtonTooltip("eject")}
+                        onMouseEnter={() => {
+                            setShowButtonTooltip("eject");
+                            playHoverSound();
+                        }}
                         onMouseLeave={() => setShowButtonTooltip(null)}
                     >
                         <button className="selector-action-btn remove-btn" onClick={handleRemoveCurrentPlanet} title="Remove planet from call list" disabled={removedPlanets.includes(currentVoiceIndex) || isTransmitterClose}>
@@ -999,7 +1066,10 @@ function App() {
                                 y: e.clientY - rect.top,
                             });
                         }}
-                        onMouseEnter={() => setShowButtonTooltip("choose")}
+                        onMouseEnter={() => {
+                            setShowButtonTooltip("choose");
+                            playHoverSound();
+                        }}
                         onMouseLeave={() => setShowButtonTooltip(null)}
                     >
                         <button className="selector-action-btn select-btn" onClick={handleSelectPlanet} title="Select this planet to land" disabled={isTransmitterClose}>
@@ -1019,7 +1089,12 @@ function App() {
                     </div>
 
                     {isDatabaseOpen && (
-                        <button className="selector-action-btn goto-btn" onClick={handleGoToDatabasePlanet} title="Go to selected database planet">
+                        <button 
+                            className="selector-action-btn goto-btn" 
+                            onClick={handleGoToDatabasePlanet} 
+                            title="Go to selected database planet"
+                            onMouseEnter={playHoverSound}
+                        >
                             →
                         </button>
                     )}
@@ -1034,7 +1109,10 @@ function App() {
                             y: e.clientY - rect.top,
                         });
                     }}
-                    onMouseEnter={() => setShowArrowTooltip("next")}
+                    onMouseEnter={() => {
+                        setShowArrowTooltip("next");
+                        playHoverSound();
+                    }}
                     onMouseLeave={() => setShowArrowTooltip(null)}
                 >
                     <img src="/Assets/SelectorRightArrow.png" alt="Selector Right Arrow" className="selector-right-arrow" onClick={() => handleVoiceChange("next")} />
@@ -1062,18 +1140,19 @@ function App() {
                             audio.play();
                             setIsTransmitterClose(true);
                         }}
+                        onMouseEnter={playHoverSound}
                     />
                     <img
                         src="/Assets/TransmitterClose.png"
                         alt="Transmitter Close"
-                        className={`transmitter-close ${isTransmitterClose ? "visible" : ""}`}
+                        className={`transmitter-close ${isTransmitterClose ? "visible" : ""} ${isRecording && isTransmitterClose ? "recording" : ""}`}
                         onClick={() => {
                             const audio = new Audio("/Audio/RadioOff.mp3");
                             audio.play();
                             setIsTransmitterClose(false);
                         }}
+                        onMouseEnter={playHoverSound}
                     />
-                    <div className={`transmitter-dot ${isRecording && isTransmitterClose ? "recording" : ""}`} />
                 </div>
                 {isProcessing && (
                     <div className="wifi-loading">
@@ -1110,7 +1189,7 @@ function App() {
                                 </p>
                             </>
                         )}
-                        <button className="restart-button" onClick={handleRestart}>
+                        <button className="restart-button" onClick={handleRestart} onMouseEnter={playHoverSound}>
                             Play Again
                         </button>
                     </div>
@@ -1119,9 +1198,9 @@ function App() {
 
             {/* Chat Log Modal */}
             {isChatLogOpen && (
-                <div className="database-modal-overlay" onClick={() => setIsChatLogOpen(false)}>
+                <div className="database-modal-overlay" onClick={handleCloseChatLog}>
                     <div className="database-modal chat-log-modal" onClick={(e) => e.stopPropagation()}>
-                        <button className="close-button" onClick={() => setIsChatLogOpen(false)}>
+                        <button className="close-button" onClick={handleCloseChatLog} onMouseEnter={playHoverSound}>
                             ✕
                         </button>
                         <div className="database-modal-content">

@@ -66,3 +66,77 @@
 .login-button:active {
   transform: translateY(0);
 }
+
+/* Responsive Design for Login Screen */
+@media screen and (max-width: 768px) {
+  .login-card {
+    padding: 2.5rem 2rem;
+    max-width: 400px;
+  }
+
+  .login-title {
+    font-size: 1.75rem;
+  }
+
+  .login-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .login-description {
+    font-size: 0.85rem;
+  }
+
+  .login-button {
+    padding: 0.75rem 2rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .login-card {
+    padding: 2rem 1.5rem;
+    max-width: 350px;
+  }
+
+  .login-title {
+    font-size: 1.5rem;
+  }
+
+  .login-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .login-description {
+    font-size: 0.8rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .login-button {
+    padding: 0.7rem 1.75rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .login-card {
+    padding: 1.5rem 1rem;
+    max-width: 300px;
+  }
+
+  .login-title {
+    font-size: 1.3rem;
+  }
+
+  .login-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .login-description {
+    font-size: 0.75rem;
+  }
+
+  .login-button {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.8rem;
+  }
+}
