@@ -99,13 +99,22 @@ function App() {
 
     const lastMultipleOf5Ref = useRef<number>(30); // Track last multiple of 5 we crossed
     const gameSessionCreatedRef = useRef<string | null>(null); // Track which game session was created in backend
+    const hasInitializedRef = useRef<boolean>(false); // Track if we've already initialized on page load
 
-    // Check if user is new and decide whether to show intro
+    // Check if user is new and decide whether to show intro or dashboard
     useEffect(() => {
+        // Only run this initialization once on initial page load
+        if (hasInitializedRef.current) {
+            return;
+        }
+
         // Wait until playerStats are loaded
         if (userLoading || !playerStats) {
             return;
         }
+
+        // Mark as initialized so this doesn't run again
+        hasInitializedRef.current = true;
 
         // Check if user has never played before (all stats are 0)
         const isNewUser =
@@ -117,17 +126,20 @@ function App() {
             // New user: show intro
             setShowIntro(true);
         } else {
-            // Returning user: skip intro, go straight to game
+            // Returning user on page load: show dashboard
             setShowIntro(false);
             setIntroComplete(true);
+            setShowDashboard(true);
         }
 
-        console.log(isNewUser ? '🆕 New user detected - showing intro' : '👋 Returning user - skipping intro');
+        console.log(isNewUser ? '🆕 New user detected - showing intro' : '👋 Returning user - showing dashboard');
     }, [playerStats, userLoading]);
 
     const handleIntroComplete = () => {
         setShowIntro(false);
         setIntroComplete(true);
+        // Make sure we don't show dashboard after intro completes
+        setShowDashboard(false);
     };
 
     // Create backend session when user becomes available
@@ -642,6 +654,25 @@ function App() {
         // Save chat logs before ending game, passing the selected planet index
         saveChatLogs(outcome, currentVoiceIndex);
 
+        // Save planet data to localStorage for dashboard display (backup for backend)
+        if (currentGameSession && planet) {
+            try {
+                const planetDataKey = `planet_data_${currentGameSession.gameId}`;
+                const planetData = {
+                    planetName: planet.planetName,
+                    planetColor: planet.planetColor,
+                    avgTemp: planet.avgTemp,
+                    oceanCoverage: planet.oceanCoverage,
+                    gravity: planet.gravity,
+                    outcome: outcome
+                };
+                localStorage.setItem(planetDataKey, JSON.stringify(planetData));
+                console.log("💾 Saved planet data to localStorage:", planetData);
+            } catch (error) {
+                console.error("Failed to save planet data to localStorage:", error);
+            }
+        }
+
         // Save to backend and end game session
         if (user?.email && currentGameSession) {
             try {
@@ -668,12 +699,23 @@ function App() {
                 await Promise.all(savePromises);
                 console.log("💾 Game chat logs saved to backend");
 
-                // End game session
+                // End game session with planet properties
+                console.log("🌍 Sending planet data to backend:", {
+                    planetName: planet.planetName,
+                    planetColor: planet.planetColor,
+                    avgTemp: planet.avgTemp,
+                    oceanCoverage: planet.oceanCoverage,
+                    gravity: planet.gravity
+                });
                 await endGameSession(
                     currentGameSession.gameId,
                     outcome,
                     planet.name,
-                    planet.planetName
+                    planet.planetName,
+                    planet.planetColor,
+                    planet.avgTemp,
+                    planet.oceanCoverage,
+                    planet.gravity
                 );
                 console.log("🏁 Game session ended in backend");
 
@@ -778,13 +820,10 @@ function App() {
     };
 
     const handleRestart = () => {
-        // Save current game session before restarting
-        saveChatLogs();
-
         // Reset game state
         setGameOver(null);
 
-        // Return to dashboard instead of restarting immediately
+        // Return to dashboard (only after user clicks "Play Again")
         setShowDashboard(true);
         setShowIntro(false);
         setIntroComplete(true);
