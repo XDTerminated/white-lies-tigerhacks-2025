@@ -52,7 +52,7 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
     };
 
     const getOutcomeBadge = (outcome?: string) => {
-        if (!outcome) return <span className="outcome-badge pending">IN PROGRESS</span>;
+        if (!outcome) return <span className="outcome-badge pending">INCOMPLETE</span>;
 
         switch (outcome.toLowerCase()) {
             case 'win':
