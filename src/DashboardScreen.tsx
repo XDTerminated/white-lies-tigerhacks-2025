@@ -15,6 +15,18 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const playHoverSound = () => {
+        const audio = new Audio("/Audio/pop.mp3");
+        audio.volume = 0.3;
+        audio.play().catch(err => console.log("Audio play failed:", err));
+    };
+
+    const playClickSound = () => {
+        const audio = new Audio("/Audio/ButtonClick.mp3");
+        audio.volume = 0.5;
+        audio.play().catch(err => console.log("Audio play failed:", err));
+    };
+
     useEffect(() => {
         async function loadSessions() {
             if (!user?.email) return;
@@ -210,7 +222,11 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
         <div className="dashboard-container">
             <button
                 className="logout-button-dashboard"
-                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+                onClick={() => {
+                    playClickSound();
+                    logout({ logoutParams: { returnTo: window.location.origin } });
+                }}
+                onMouseEnter={playHoverSound}
                 title="Logout"
             >
                 Logout
@@ -262,7 +278,11 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                                 </div>
                                 <button
                                     className="view-details-btn"
-                                    onClick={() => onViewSession(session.game_id)}
+                                    onClick={() => {
+                                        playClickSound();
+                                        onViewSession(session.game_id);
+                                    }}
+                                    onMouseEnter={playHoverSound}
                                 >
                                     View Details
                                 </button>
@@ -271,7 +291,14 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                     </div>
                 )}
 
-                <button className="start-mission-btn" onClick={onStartNewGame}>
+                <button
+                    className="start-mission-btn"
+                    onClick={() => {
+                        playClickSound();
+                        onStartNewGame();
+                    }}
+                    onMouseEnter={playHoverSound}
+                >
                     START NEW MISSION
                 </button>
             </div>
