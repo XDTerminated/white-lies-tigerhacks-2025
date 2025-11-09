@@ -257,64 +257,70 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                         <h1 className="dashboard-title">MISSION HISTORY DATABASE</h1>
                         <p className="dashboard-subtitle">Past Planetary Research Missions</p>
 
-                {isLoading && (
-                    <div className="dashboard-loading">
-                        <div className="loading-text">Loading mission records...</div>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="dashboard-error">
-                        <div className="error-text">{error}</div>
-                    </div>
-                )}
-
-                {!isLoading && !error && sessions.length === 0 && (
-                    <div className="dashboard-empty">
-                        <div className="empty-text">No missions on record</div>
-                        <p className="empty-subtext">Begin your first planetary research mission</p>
-                    </div>
-                )}
-
-                {!isLoading && !error && sessions.length > 0 && (
-                    <div className="sessions-list">
-                        {sessions.map((session) => (
-                            <div key={session.game_id} className={`session-card ${session.outcome === 'win' ? 'session-card-win' : ''}`}>
-                                <div className="session-header">
-                                    <div className="session-date">{formatDate(session.start_time)}</div>
-                                    {getOutcomeBadge(session.outcome)}
-                                </div>
-                                <div className="session-content-wrapper">
-                                    <div className="session-details">
-                                        <div className="session-row">
-                                            <span className="session-label">Researcher:</span>
-                                            <span className="session-value">{session.selected_researcher || 'Unknown'}</span>
-                                        </div>
-                                        <div className="session-row">
-                                            <span className="session-label">Planet:</span>
-                                            <span className="session-value">{session.selected_planet || 'Unknown'}</span>
-                                        </div>
-                                    </div>
-                                    {renderPlanetVisualization(session)}
-                                </div>
-                                <button
-                                    className="view-details-btn"
-                                    onClick={() => {
-                                        playClickSound();
-                                        onViewSession(session.game_id);
-                                    }}
-                                    onMouseEnter={playHoverSound}
-                                >
-                                    View Details
-                                </button>
+                        {isLoading && (
+                            <div className="dashboard-loading">
+                                <div className="loading-text">Loading mission records...</div>
                             </div>
-                        ))}
-                    </div>
+                        )}
+
+                        {error && (
+                            <div className="dashboard-error">
+                                <div className="error-text">{error}</div>
+                            </div>
+                        )}
+
+                        {!isLoading && !error && sessions.length === 0 && (
+                            <div className="dashboard-empty">
+                                <div className="empty-text">No missions on record</div>
+                                <p className="empty-subtext">Begin your first planetary research mission</p>
+                            </div>
+                        )}
+
+                        {!isLoading && !error && sessions.length > 0 && (
+                            <div className="sessions-list">
+                                {sessions.map((session) => (
+                                    <div key={session.game_id} className={`session-card ${session.outcome === 'win' ? 'session-card-win' : ''}`}>
+                                        <div className="session-header">
+                                            <div className="session-date">{formatDate(session.start_time)}</div>
+                                            {getOutcomeBadge(session.outcome)}
+                                        </div>
+                                        <div className="session-content-wrapper">
+                                            <div className="session-details">
+                                                <div className="session-row">
+                                                    <span className="session-label">Researcher:</span>
+                                                    <span className="session-value">{session.selected_researcher || 'Unknown'}</span>
+                                                </div>
+                                                <div className="session-row">
+                                                    <span className="session-label">Planet:</span>
+                                                    <span className="session-value">{session.selected_planet || 'Unknown'}</span>
+                                                </div>
+                                            </div>
+                                            {renderPlanetVisualization(session)}
+                                        </div>
+                                        <button
+                                            className="view-details-btn"
+                                            onClick={() => {
+                                                playClickSound();
+                                                onViewSession(session.game_id);
+                                            }}
+                                            onMouseEnter={playHoverSound}
+                                        >
+                                            View Details
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <button className="start-mission-btn" onClick={onStartNewGame}>
+                            START NEW MISSION
+                        </button>
+                    </>
                 )}
 
-                <button className="start-mission-btn" onClick={onStartNewGame}>
-                    START NEW MISSION
-                </button>
+                {activeTab === 'nfts' && (
+                    <NFTDashboard />
+                )}
             </div>
         </div>
     );
