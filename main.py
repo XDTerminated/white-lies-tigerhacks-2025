@@ -206,6 +206,48 @@ class GameSessionWithChatsResponse(BaseModel):
     chat_logs: List[ChatLogWithMessages]
 
 
+class PlanetNFTCreate(BaseModel):
+    """Request model for creating/earning a planet NFT"""
+
+    player_email: EmailStr = Field(..., description="Player email address")
+    planet_id: str = Field(..., description="Unique planet identifier")
+    planet_name: str = Field(..., description="Name of the planet")
+
+
+class PlanetNFTResponse(BaseModel):
+    """Response model for planet NFT data"""
+
+    id: int
+    player_email: str
+    planet_id: str
+    planet_name: str
+    earned_date: datetime
+    minted: bool
+    token_id: Optional[str]
+    mint_signature: Optional[str]
+    metadata_uri: Optional[str]
+
+
+class UpdateMintInfoRequest(BaseModel):
+    """Request model for updating NFT mint information"""
+
+    token_id: str = Field(..., description="Solana mint address")
+    mint_signature: str = Field(..., description="Transaction signature")
+    metadata_uri: str = Field(..., description="IPFS/Arweave metadata URL")
+
+
+class MetadataUploadRequest(BaseModel):
+    """Request model for uploading NFT metadata"""
+
+    planet_id: str = Field(..., description="Planet identifier")
+    planet_name: str = Field(..., description="Name of the planet")
+    earned_date: Optional[datetime] = Field(None, description="Date when NFT was earned")
+    planet_color: Optional[str] = Field(None, description="Planet color")
+    avg_temp: Optional[float] = Field(None, description="Average temperature")
+    ocean_coverage: Optional[float] = Field(None, description="Ocean coverage percentage")
+    gravity: Optional[float] = Field(None, description="Gravity value")
+
+
 # ============================================================================
 # Database Functions
 # ============================================================================
@@ -511,6 +553,116 @@ async def get_researcher_chat_logs(
     return result
 
 
+async def earn_planet_nft(
+    conn: asyncpg.Connection,
+    email: str,
+    planet_id: str,
+    planet_name: str,
+) -> dict:
+    """Create NFT record when player earns a planet, handles duplicates with ON CONFLICT"""
+    # console.log: Creating/updating planet NFT record
+    nft = await conn.fetchrow(
+        """
+        INSERT INTO planet_nfts (player_email, planet_id, planet_name, earned_date)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        ON CONFLICT (player_email, planet_id) 
+        DO UPDATE SET 
+            planet_name = EXCLUDED.planet_name,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING id, player_email, planet_id, planet_name, earned_date, minted, token_id, mint_signature, metadata_uri
+        """,
+        email,
+        planet_id,
+        planet_name,
+    )
+    return dict(nft)
+
+
+async def get_earned_nfts(
+    conn: asyncpg.Connection,
+    email: str,
+) -> List[dict]:
+    """Get all NFTs for a player, ordered by earned_date DESC"""
+    # console.log: Fetching all earned NFTs for player
+    rows = await conn.fetch(
+        """
+        SELECT id, player_email, planet_id, planet_name, earned_date, minted, token_id, mint_signature, metadata_uri
+        FROM planet_nfts
+        WHERE player_email = $1
+        ORDER BY earned_date DESC
+        """,
+        email,
+    )
+    return [dict(row) for row in rows]
+
+
+async def get_unminted_nfts(
+    conn: asyncpg.Connection,
+    email: str,
+) -> List[dict]:
+    """Get only unminted NFTs (minted = FALSE) for a player"""
+    # console.log: Fetching unminted NFTs for player
+    rows = await conn.fetch(
+        """
+        SELECT id, player_email, planet_id, planet_name, earned_date, minted, token_id, mint_signature, metadata_uri
+        FROM planet_nfts
+        WHERE player_email = $1 AND minted = FALSE
+        ORDER BY earned_date DESC
+        """,
+        email,
+    )
+    return [dict(row) for row in rows]
+
+
+async def update_nft_mint_info(
+    conn: asyncpg.Connection,
+    nft_id: int,
+    token_id: str,
+    signature: str,
+    metadata_uri: str,
+) -> dict:
+    """Update NFT after minting with token_id, signature, and metadata_uri"""
+    # console.log: Updating NFT mint information
+    nft = await conn.fetchrow(
+        """
+        UPDATE planet_nfts
+        SET minted = TRUE,
+            token_id = $2,
+            mint_signature = $3,
+            metadata_uri = $4,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING id, player_email, planet_id, planet_name, earned_date, minted, token_id, mint_signature, metadata_uri
+        """,
+        nft_id,
+        token_id,
+        signature,
+        metadata_uri,
+    )
+    if not nft:
+        raise HTTPException(status_code=404, detail="NFT not found")
+    return dict(nft)
+
+
+async def get_nft_by_id(
+    conn: asyncpg.Connection,
+    nft_id: int,
+) -> dict:
+    """Get single NFT by ID"""
+    # console.log: Fetching NFT by ID
+    nft = await conn.fetchrow(
+        """
+        SELECT id, player_email, planet_id, planet_name, earned_date, minted, token_id, mint_signature, metadata_uri
+        FROM planet_nfts
+        WHERE id = $1
+        """,
+        nft_id,
+    )
+    if not nft:
+        raise HTTPException(status_code=404, detail="NFT not found")
+    return dict(nft)
+
+
 async def get_all_game_sessions(
     conn: asyncpg.Connection,
     email: str,
@@ -806,6 +958,93 @@ async def get_researcher_logs(email: str, researcher_name: str, conn=Depends(get
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get researcher chat logs: {str(e)}"
+        )
+
+
+@app.post("/api/nfts/earn", response_model=PlanetNFTResponse)
+async def earn_nft(nft_data: PlanetNFTCreate, conn=Depends(get_db)):
+    """Earn an NFT (called when player wins)"""
+    try:
+        # console.log: Player earning planet NFT
+        nft = await earn_planet_nft(
+            conn, nft_data.player_email, nft_data.planet_id, nft_data.planet_name
+        )
+        return PlanetNFTResponse(**nft)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to earn NFT: {str(e)}"
+        )
+
+
+@app.get("/api/nfts/earned/{email}", response_model=List[PlanetNFTResponse])
+async def get_earned_nfts_endpoint(email: str, conn=Depends(get_db)):
+    """Get all earned NFTs for a player"""
+    try:
+        nfts = await get_earned_nfts(conn, email)
+        return [PlanetNFTResponse(**nft) for nft in nfts]
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get earned NFTs: {str(e)}"
+        )
+
+
+@app.get("/api/nfts/unminted/{email}", response_model=List[PlanetNFTResponse])
+async def get_unminted_nfts_endpoint(email: str, conn=Depends(get_db)):
+    """Get unminted NFTs only for a player"""
+    try:
+        nfts = await get_unminted_nfts(conn, email)
+        return [PlanetNFTResponse(**nft) for nft in nfts]
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get unminted NFTs: {str(e)}"
+        )
+
+
+@app.post("/api/nfts/update-mint/{nft_id}", response_model=PlanetNFTResponse)
+async def update_mint_info(
+    nft_id: int, mint_data: UpdateMintInfoRequest, conn=Depends(get_db)
+):
+    """Update NFT with mint info after minting on Solana"""
+    try:
+        # console.log: Updating NFT mint information
+        nft = await update_nft_mint_info(
+            conn, nft_id, mint_data.token_id, mint_data.mint_signature, mint_data.metadata_uri
+        )
+        return PlanetNFTResponse(**nft)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update mint info: {str(e)}"
+        )
+
+
+@app.get("/api/nfts/{nft_id}", response_model=PlanetNFTResponse)
+async def get_nft_by_id_endpoint(nft_id: int, conn=Depends(get_db)):
+    """Get NFT by ID"""
+    try:
+        nft = await get_nft_by_id(conn, nft_id)
+        return PlanetNFTResponse(**nft)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get NFT: {str(e)}"
+        )
+
+
+@app.post("/api/nfts/upload-metadata")
+async def upload_metadata(metadata: MetadataUploadRequest, conn=Depends(get_db)):
+    """Upload metadata and return URI (placeholder implementation)"""
+    try:
+        # console.log: Uploading NFT metadata
+        # For now, return placeholder URI
+        # Later can integrate with IPFS/Arweave
+        uri = f"https://placeholder.metadata/{metadata.planet_id}"
+        return {"uri": uri}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to upload metadata: {str(e)}"
         )
 
 

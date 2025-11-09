@@ -1,0 +1,30 @@
+# Rust
+target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Anchor
+.anchor/
+test-ledger/
+.DS_Store
+
+# IDL
+target/idl/
+target/types/
+
+# Node
+node_modules/
+.yarn/
+*.log
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

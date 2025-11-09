@@ -1,0 +1,25 @@
+[toolchain]
+channel = "1.78.0"
+
+[features]
+resolution = true
+default = ["resolution"]
+
+[build]
+features = ["resolution"]
+
+[programs.devnet]
+planet_nft = "Fb7uNXapsRwUdsvGDedesLS7D1A4AHk6CeMvrrvTVqwf"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 10000
