@@ -7,6 +7,7 @@ import type { Voice } from "./data/voices";
 import { generateRandomPlanets, getBaseColorFromDescription } from "./utils/planetGenerator";
 import { useUser } from "./contexts/UserContext";
 import { addChatMessage, updatePlayerStats, createGameSession, endGameSession, saveGameChatLog, getResearcherChatLogs } from "./services/api";
+import { IntroScene } from "./IntroScene";
 import "./App.css";
 
 interface Message {
@@ -36,6 +37,7 @@ interface GameSession {
 function App() {
     const { logout, user } = useAuth0();
     const { userData, playerStats, refreshStats } = useUser();
+    const [showIntro, setShowIntro] = useState(true);
     const [planets, setPlanets] = useState<Voice[]>([]);
     const [databaseOrder, setDatabaseOrder] = useState<number[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -75,6 +77,10 @@ function App() {
     const processingAudioRef = useRef<HTMLAudioElement | null>(null);
     const oxygenTimerRef = useRef<number | null>(null);
     const lastMultipleOf5Ref = useRef<number>(30); // Track last multiple of 5 we crossed
+
+    const handleIntroComplete = () => {
+        setShowIntro(false);
+    };
 
     // Generate random planets on component mount and initialize game session
     useEffect(() => {
@@ -751,6 +757,7 @@ function App() {
         setOxygenLevel(0.3); // Reset oxygen to 30%
         lastMultipleOf5Ref.current = 30; // Reset the multiple tracker
         setFlashRed(false);
+        setShowIntro(true); // Show intro scene again
 
         // Generate new random planets
         const randomPlanets = generateRandomPlanets(5);
@@ -795,7 +802,8 @@ function App() {
         return <div className="app">Loading planets...</div>;
     }
 
-    return (
+    // Render the game scene content
+    const gameSceneContent = (
         <div className={`app ${flashRed ? 'screen-flash-red' : ''}`}>
             <button 
                 className="logout-button" 
@@ -1348,6 +1356,13 @@ function App() {
             )}
         </div>
     );
+
+    // Show intro scene first with game scene in background
+    if (showIntro) {
+        return <IntroScene onComplete={handleIntroComplete} gameSceneContent={gameSceneContent} />;
+    }
+
+    return gameSceneContent;
 }
 
 export default App;

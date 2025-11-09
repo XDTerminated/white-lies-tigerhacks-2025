@@ -1,0 +1,266 @@
+.intro-scene {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.intro-scene.shake {
+    animation: screenShake 1s ease-in-out;
+}
+
+@keyframes screenShake {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-10px, -10px); }
+    20% { transform: translate(10px, 10px); }
+    30% { transform: translate(-10px, 10px); }
+    40% { transform: translate(10px, -10px); }
+    50% { transform: translate(-10px, -10px); }
+    60% { transform: translate(10px, 10px); }
+    70% { transform: translate(-10px, 10px); }
+    80% { transform: translate(10px, -10px); }
+    90% { transform: translate(-10px, -10px); }
+}
+
+/* Game scene visible during intro - non-interactable */
+.intro-game-scene-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.intro-game-scene-background .app {
+    pointer-events: none;
+}
+
+/* Black overlay for fades */
+.black-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+    z-index: 2;
+    transition: opacity 1s ease-in-out;
+    pointer-events: none;
+}
+
+.black-overlay.visible {
+    opacity: 1;
+}
+
+.black-overlay.hidden {
+    opacity: 0;
+}
+
+/* Crash Stage - happens while screen is black */
+.crash-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle, rgba(255,0,0,0.6) 0%, rgba(255,0,0,0.2) 70%);
+    z-index: 3;
+}
+
+.crash-text {
+    font-family: 'Courier New', monospace;
+    font-size: 3rem;
+    color: #ff0000;
+    text-align: center;
+    text-shadow: 0 0 30px #ff0000;
+    letter-spacing: 0.2rem;
+    animation: crashPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes crashPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Control Panel Stage */
+.control-panel-zoom {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: zoomIn 1s ease-out forwards;
+    z-index: 4;
+}
+
+@keyframes zoomIn {
+    from {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.control-panel-clickable {
+    cursor: pointer;
+    position: relative;
+    animation: whiteFlash 1.5s ease-in-out infinite;
+    transition: transform 0.2s ease;
+}
+
+.control-panel-clickable:hover {
+    transform: scale(1.05);
+}
+
+.control-panel-image {
+    max-width: 80%;
+    max-height: 80vh;
+    object-fit: contain;
+    filter: drop-shadow(0 0 30px rgba(0, 255, 255, 0.5));
+}
+
+@keyframes whiteFlash {
+    0%, 100% {
+        filter: drop-shadow(0 0 30px rgba(0, 255, 255, 0.5)) brightness(1);
+    }
+    50% {
+        filter: drop-shadow(0 0 50px rgba(255, 255, 255, 0.9)) brightness(1.5);
+    }
+}
+
+/* Database Stage */
+.database-fullscreen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px;
+    animation: fadeIn 1s ease-in;
+    overflow-y: auto;
+    z-index: 5;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.database-header {
+    font-family: 'Courier New', monospace;
+    font-size: 3rem;
+    color: #00ffff;
+    text-shadow: 0 0 20px #00ffff;
+    letter-spacing: 0.2rem;
+    margin-bottom: 60px;
+    text-align: center;
+}
+
+.database-content {
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #00ffff;
+    border-radius: 15px;
+    padding: 50px;
+    max-width: 900px;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+}
+
+.emergency-text {
+    font-family: 'Courier New', monospace;
+    font-size: 1.5rem;
+    color: #ffffff;
+    line-height: 2.5;
+    text-align: center;
+}
+
+.emergency-text p {
+    margin: 10px 0;
+}
+
+.emergency-text .separator {
+    color: #00ffff;
+    margin: 20px 0;
+}
+
+.emergency-text .final-warning {
+    color: #ff6b6b;
+    font-size: 2rem;
+    font-weight: bold;
+    margin-top: 30px;
+    text-shadow: 0 0 15px #ff6b6b;
+    animation: finalWarningPulse 2s ease-in-out infinite;
+}
+
+@keyframes finalWarningPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+.database-continue-btn {
+    margin-top: 50px;
+    padding: 20px 60px;
+    font-family: 'Courier New', monospace;
+    font-size: 1.5rem;
+    color: #000000;
+    background: linear-gradient(135deg, #00ffff 0%, #0080ff 100%);
+    border: 3px solid #00ffff;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+    transition: all 0.3s ease;
+    font-weight: bold;
+    letter-spacing: 0.1rem;
+}
+
+.database-continue-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 50px rgba(0, 255, 255, 1);
+    background: linear-gradient(135deg, #0080ff 0%, #00ffff 100%);
+}
+
+@media (max-width: 768px) {
+    .crash-text {
+        font-size: 2rem;
+    }
+    
+    .control-panel-image {
+        max-width: 90%;
+    }
+    
+    .database-header {
+        font-size: 2rem;
+    }
+    
+    .database-content {
+        padding: 30px;
+    }
+    
+    .emergency-text {
+        font-size: 1.2rem;
+    }
+    
+    .emergency-text .final-warning {
+        font-size: 1.5rem;
+    }
+}
