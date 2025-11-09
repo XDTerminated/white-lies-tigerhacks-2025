@@ -117,10 +117,7 @@ function App() {
         hasInitializedRef.current = true;
 
         // Check if user has never played before (all stats are 0)
-        const isNewUser =
-            playerStats.correct_guesses === 0 &&
-            playerStats.correct_ejections === 0 &&
-            playerStats.incorrect_guesses === 0;
+        const isNewUser = playerStats.correct_guesses === 0 && playerStats.correct_ejections === 0 && playerStats.incorrect_guesses === 0;
 
         if (isNewUser) {
             // New user: show intro
@@ -132,7 +129,7 @@ function App() {
             setShowDashboard(true);
         }
 
-        console.log(isNewUser ? '🆕 New user detected - showing intro' : '👋 Returning user - showing dashboard');
+        console.log(isNewUser ? "🆕 New user detected - showing intro" : "👋 Returning user - showing dashboard");
     }, [playerStats, userLoading]);
 
     const handleIntroComplete = () => {
@@ -177,23 +174,23 @@ function App() {
         oxygenTimerRef.current = window.setInterval(() => {
             setOxygenLevel((prevLevel) => {
                 const newLevel = Math.max(0, prevLevel - depletionRate);
-                
+
                 // Check if we crossed a multiple of 5
                 const prevPercentage = Math.floor(prevLevel * 100);
                 const newPercentage = Math.floor(newLevel * 100);
-                
+
                 if (prevPercentage !== newPercentage && newPercentage % 5 === 0 && newPercentage < lastMultipleOf5Ref.current) {
                     lastMultipleOf5Ref.current = newPercentage;
                     setFlashRed(true);
                     setTimeout(() => setFlashRed(false), 5000);
                 }
-                
+
                 // Check if oxygen depleted
                 if (newLevel <= 0 && !gameOver) {
                     setGameOver("oxygen");
                     return 0;
                 }
-                
+
                 return newLevel;
             });
         }, 100);
@@ -415,7 +412,7 @@ function App() {
 
         // Calculate oxygen cost based on message length (1-2% per message)
         const wordCount = userMessage.trim().split(/\s+/).length;
-        const baseOxygenCost = 0.01 + (wordCount * 0.0005); // Start at 1% + 0.05% per word
+        const baseOxygenCost = 0.01 + wordCount * 0.0005; // Start at 1% + 0.05% per word
         const oxygenCost = Math.min(baseOxygenCost, 0.02); // Cap at 2%
 
         // Deduct oxygen
@@ -664,7 +661,7 @@ function App() {
                     avgTemp: planet.avgTemp,
                     oceanCoverage: planet.oceanCoverage,
                     gravity: planet.gravity,
-                    outcome: outcome
+                    outcome: outcome,
                 };
                 localStorage.setItem(planetDataKey, JSON.stringify(planetData));
                 console.log("💾 Saved planet data to localStorage:", planetData);
@@ -686,13 +683,7 @@ function App() {
                             message_order: msgIndex,
                         }));
 
-                        await saveGameChatLog(
-                            currentGameSession.gameId,
-                            user.email!,
-                            p.name,
-                            p.planetName,
-                            gameChatMessages
-                        );
+                        await saveGameChatLog(currentGameSession.gameId, user.email!, p.name, p.planetName, gameChatMessages);
                     }
                 });
 
@@ -705,18 +696,9 @@ function App() {
                     planetColor: planet.planetColor,
                     avgTemp: planet.avgTemp,
                     oceanCoverage: planet.oceanCoverage,
-                    gravity: planet.gravity
+                    gravity: planet.gravity,
                 });
-                await endGameSession(
-                    currentGameSession.gameId,
-                    outcome,
-                    planet.name,
-                    planet.planetName,
-                    planet.planetColor,
-                    planet.avgTemp,
-                    planet.oceanCoverage,
-                    planet.gravity
-                );
+                await endGameSession(currentGameSession.gameId, outcome, planet.name, planet.planetName, planet.planetColor, planet.avgTemp, planet.oceanCoverage, planet.gravity);
                 console.log("🏁 Game session ended in backend");
 
                 // Update player stats
@@ -730,13 +712,9 @@ function App() {
                     // Award NFT for winning
                     try {
                         // Generate unique planet ID based on planet name and timestamp
-                        const planetId = `${planet.planetName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
-                        
-                        await earnNFT(
-                            user.email,
-                            planetId,
-                            planet.planetName
-                        );
+                        const planetId = `${planet.planetName.toLowerCase().replace(/\s+/g, "_")}_${Date.now()}`;
+
+                        await earnNFT(user.email, planetId, planet.planetName);
                         console.log("🎁 NFT earned for winning!");
                     } catch (error) {
                         console.error("❌ Failed to earn NFT:", error);
@@ -856,10 +834,7 @@ function App() {
         setShowDashboard(false);
 
         // Check if user is new - only show intro for brand new users
-        const isNewUser = playerStats &&
-            playerStats.correct_guesses === 0 &&
-            playerStats.correct_ejections === 0 &&
-            playerStats.incorrect_guesses === 0;
+        const isNewUser = playerStats && playerStats.correct_guesses === 0 && playerStats.correct_ejections === 0 && playerStats.incorrect_guesses === 0;
 
         if (isNewUser) {
             setShowIntro(true);
@@ -931,28 +906,20 @@ function App() {
 
     // Render the game scene content
     const gameSceneContent = (
-        <div className={`app ${flashRed ? 'screen-flash-red' : ''}`}>
-            <button 
-                className="logout-button" 
-                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} 
-                title="Logout"
-                onMouseEnter={playHoverSound}
-            >
+        <div className={`app ${flashRed ? "screen-flash-red" : ""}`}>
+            <button className="logout-button" onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} title="Logout" onMouseEnter={playHoverSound}>
                 Logout
             </button>
-            
+
             {/* Oxygen Bar */}
-            <div className={`oxygen-bar-container ${flashRed ? 'flash-red' : ''} ${introComplete ? 'intro-complete' : ''}`}>
+            <div className={`oxygen-bar-container ${flashRed ? "flash-red" : ""} ${introComplete ? "intro-complete" : ""}`}>
                 <div className="oxygen-bar-label">OXYGEN</div>
                 <div className="oxygen-bar-outer">
-                    <div 
-                        className={`oxygen-bar-fill ${flashRed ? 'flash-red' : ''} ${oxygenLevel <= 0.1 ? 'critical' : oxygenLevel <= 0.2 ? 'warning' : ''}`}
-                        style={{ width: `${oxygenLevel * 100}%` }}
-                    />
+                    <div className={`oxygen-bar-fill ${flashRed ? "flash-red" : ""} ${oxygenLevel <= 0.1 ? "critical" : oxygenLevel <= 0.2 ? "warning" : ""}`} style={{ width: `${oxygenLevel * 100}%` }} />
                 </div>
                 <div className="oxygen-bar-percentage">{(oxygenLevel * 100).toFixed(1)}%</div>
             </div>
-            
+
             {isDatabaseOpen && (
                 <div className="database-modal-overlay" onClick={handleCloseDatabaseModal}>
                     <div className="database-modal" onClick={(e) => e.stopPropagation()}>
@@ -1199,8 +1166,8 @@ function App() {
                     <div className={`screen-text ${isTransitioning ? "transitioning" : ""} ${isDeleting ? "deleting" : ""}`}>
                         <div className="screen-planet-wrapper">
                             <div className="screen-researcher-label">Researcher:</div>
-                            <div 
-                                className="screen-planet-name clickable-name" 
+                            <div
+                                className="screen-planet-name clickable-name"
                                 onClick={handleNameClick}
                                 onMouseMove={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
@@ -1339,12 +1306,7 @@ function App() {
                     </div>
 
                     {isDatabaseOpen && (
-                        <button 
-                            className="selector-action-btn goto-btn" 
-                            onClick={handleGoToDatabasePlanet} 
-                            title="Go to selected database planet"
-                            onMouseEnter={playHoverSound}
-                        >
+                        <button className="selector-action-btn goto-btn" onClick={handleGoToDatabasePlanet} title="Go to selected database planet" onMouseEnter={playHoverSound}>
                             →
                         </button>
                     )}
@@ -1502,37 +1464,23 @@ function App() {
         </div>
     );
 
-
     // Show loading while checking if user is new
     if (showIntro === null) {
         return (
-            <div className="app" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-                <div style={{ color: '#00ff00', fontFamily: 'Courier New', fontSize: '1.5rem', textShadow: '0 0 10px rgba(0, 255, 0, 0.8)' }}>
-                    Loading...
-                </div>
+            <div className="app" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+                <div style={{ color: "#00ff00", fontFamily: "Courier New", fontSize: "1.5rem", textShadow: "0 0 10px rgba(0, 255, 0, 0.8)" }}>Loading...</div>
             </div>
         );
     }
 
     // Show game session detail view
     if (selectedGameId) {
-        return (
-            <GameSessionDetail
-                gameId={selectedGameId}
-                onBack={handleBackToDashboard}
-                onStartNewGame={handleStartNewGame}
-            />
-        );
+        return <GameSessionDetail gameId={selectedGameId} onBack={handleBackToDashboard} onStartNewGame={handleStartNewGame} />;
     }
 
     // Show dashboard for returning users
     if (showDashboard) {
-        return (
-            <DashboardScreen
-                onStartNewGame={handleStartNewGame}
-                onViewSession={handleViewGameDetails}
-            />
-        );
+        return <DashboardScreen onStartNewGame={handleStartNewGame} onViewSession={handleViewGameDetails} />;
     }
 
     // Show intro scene first with game scene in background (only for new users)

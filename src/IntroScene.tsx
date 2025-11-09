@@ -137,7 +137,7 @@ Your hull and life support are damaged. Oxygen reserves are limited. Five nearby
             let cancelled = false;
 
             // Preferred ElevenLabs voice id (ship-AI) - overridden by user input
-            const PREFERRED_SHIP_VOICE_ID = 'weA4Q36twV5kwSaTEL0Q';
+            const PREFERRED_SHIP_VOICE_ID = "weA4Q36twV5kwSaTEL0Q";
 
             async function startNarration() {
                 try {
@@ -160,7 +160,7 @@ Your hull and life support are damaged. Oxygen reserves are limited. Five nearby
                     try {
                         audio.playbackRate = PREFERRED_PLAYBACK_RATE;
                     } catch (err) {
-                        console.warn('Unable to set playbackRate on audio element', err);
+                        console.warn("Unable to set playbackRate on audio element", err);
                     }
                     audioRef.current = audio;
 
@@ -197,7 +197,9 @@ Your hull and life support are damaged. Oxygen reserves are limited. Five nearby
                         // Revoke object URL to free memory
                         try {
                             URL.revokeObjectURL(audio.src);
-                        } catch (e) {}
+                        } catch {
+                            // Ignore URL revocation errors
+                        }
                     };
 
                     // Play the audio
@@ -227,7 +229,9 @@ Your hull and life support are damaged. Oxygen reserves are limited. Five nearby
                     try {
                         audioRef.current.pause();
                         URL.revokeObjectURL(audioRef.current.src);
-                    } catch (e) {}
+                    } catch {
+                        // Ignore cleanup errors
+                    }
                     audioRef.current = null;
                 }
                 if (revealIntervalRef.current) {
@@ -236,7 +240,7 @@ Your hull and life support are damaged. Oxygen reserves are limited. Five nearby
                 }
             };
         }
-    }, [stage]);
+    }, [stage, systemMessage]);
 
     const handleSkipNarration = () => {
         // Stop audio and reveal full text immediately
@@ -244,7 +248,9 @@ Your hull and life support are damaged. Oxygen reserves are limited. Five nearby
             try {
                 audioRef.current.pause();
                 URL.revokeObjectURL(audioRef.current.src);
-            } catch (e) {}
+            } catch {
+                // Ignore cleanup errors
+            }
             audioRef.current = null;
         }
         if (revealIntervalRef.current) {
@@ -267,16 +273,12 @@ Your hull and life support are damaged. Oxygen reserves are limited. Five nearby
     return (
         <div className={`intro-scene ${shake ? "shake" : ""}`}>
             {/* Game scene in background - non-interactable, shows Base2 during intro */}
-            <div className={`intro-game-scene-background ${(stage === "blackout" || stage === "fade" || stage === "crash" || stage === "panel") ? "use-base2" : ""}`}>
+            <div className={`intro-game-scene-background ${stage === "blackout" || stage === "fade" || stage === "crash" || stage === "panel" ? "use-base2" : ""}`}>
                 {gameSceneContent}
-                
+
                 {/* Control panel overlay - part of the game scene layer */}
                 {(stage === "fade" || stage === "crash" || stage === "panel") && (
-                    <div 
-                        className={`control-panel-in-scene ${startGlow ? 'glow-active' : ''}`}
-                        onClick={stage === "panel" ? handleBlueCircleClick : undefined}
-                        style={{ pointerEvents: stage === "panel" ? 'auto' : 'none' }}
-                    >
+                    <div className={`control-panel-in-scene ${startGlow ? "glow-active" : ""}`} onClick={stage === "panel" ? handleBlueCircleClick : undefined} style={{ pointerEvents: stage === "panel" ? "auto" : "none" }}>
                         <img src="/Assets/controlPanel.png" alt="Control Panel" className="control-panel-scene-image" />
                     </div>
                 )}
@@ -299,36 +301,37 @@ Your hull and life support are damaged. Oxygen reserves are limited. Five nearby
             )}
 
             {stage === "database" && (
-                <div className="database-modal-overlay" onClick={() => { /* click outside does nothing during intro */ }}>
+                <div
+                    className="database-modal-overlay"
+                    onClick={() => {
+                        /* click outside does nothing during intro */
+                    }}
+                >
                     <div className="database-modal" onClick={(e) => e.stopPropagation()}>
                         {/* No close button here — user must read/skip then begin mission */}
                         <div className="database-modal-content">
                             <h2>EMERGENCY CONTACT DATABASE</h2>
 
-                            <div className="emergency-text" style={{ whiteSpace: 'pre-wrap' }}>
+                            <div className="emergency-text" style={{ whiteSpace: "pre-wrap" }}>
                                 {revealedText || ""}
                             </div>
 
                             {narrationFinished && (
                                 <div className="database-footer">
-                                    <button
-                                        className="database-continue-btn"
-                                        onClick={handleDatabaseContinue}
-                                        title="Begin mission"
-                                    >
+                                    <button className="database-continue-btn" onClick={handleDatabaseContinue} title="Begin mission">
                                         BEGIN MISSION
                                     </button>
                                 </div>
                             )}
                         </div>
-                        </div>
+                    </div>
 
                     {isNarrating && (
                         <button className="database-skip-btn-screen" onClick={handleSkipNarration}>
                             SKIP
                         </button>
                     )}
-                    </div>
+                </div>
             )}
         </div>
     );

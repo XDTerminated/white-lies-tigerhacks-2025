@@ -5,10 +5,10 @@ import "./GameSessionDetail.css";
 interface GameSessionDetailProps {
     gameId: string;
     onBack: () => void;
-    onStartNewGame: () => void;
+    onStartNewGame?: () => void;
 }
 
-export default function GameSessionDetail({ gameId, onBack, onStartNewGame }: GameSessionDetailProps) {
+export default function GameSessionDetail({ gameId, onBack }: GameSessionDetailProps) {
     const [sessionData, setSessionData] = useState<GameSessionWithChats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -38,34 +38,42 @@ export default function GameSessionDetail({ gameId, onBack, onStartNewGame }: Ga
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
+        return date.toLocaleString("en-US", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
         });
     };
 
     const getOutcomeClass = (outcome?: string) => {
-        if (!outcome) return 'pending';
+        if (!outcome) return "pending";
         switch (outcome.toLowerCase()) {
-            case 'win': return 'win';
-            case 'lose': return 'lose';
-            case 'oxygen': return 'oxygen';
-            default: return '';
+            case "win":
+                return "win";
+            case "lose":
+                return "lose";
+            case "oxygen":
+                return "oxygen";
+            default:
+                return "";
         }
     };
 
     const getOutcomeText = (outcome?: string) => {
-        if (!outcome) return 'IN PROGRESS';
+        if (!outcome) return "IN PROGRESS";
         switch (outcome.toLowerCase()) {
-            case 'win': return 'MISSION SUCCESS';
-            case 'lose': return 'MISSION FAILED';
-            case 'oxygen': return 'OXYGEN FAILURE';
-            default: return outcome.toUpperCase();
+            case "win":
+                return "MISSION SUCCESS";
+            case "lose":
+                return "MISSION FAILED";
+            case "oxygen":
+                return "OXYGEN FAILURE";
+            default:
+                return outcome.toUpperCase();
         }
     };
 
@@ -103,9 +111,7 @@ export default function GameSessionDetail({ gameId, onBack, onStartNewGame }: Ga
             </button>
 
             <div className="session-detail-content">
-                <h1 className={`session-detail-title ${getOutcomeClass(sessionData.outcome)}`}>
-                    {getOutcomeText(sessionData.outcome)}
-                </h1>
+                <h1 className={`session-detail-title ${getOutcomeClass(sessionData.outcome)}`}>{getOutcomeText(sessionData.outcome)}</h1>
                 <p className="session-detail-date">{formatDate(sessionData.start_time)}</p>
 
                 {sessionData.selected_researcher && sessionData.selected_planet && (
@@ -132,24 +138,18 @@ export default function GameSessionDetail({ gameId, onBack, onStartNewGame }: Ga
 
                         return (
                             <div key={chatLog.researcher_name} className="researcher-section">
-                                <button
-                                    className={`researcher-header ${isSelected ? 'selected' : ''}`}
-                                    onClick={() => toggleResearcher(chatLog.researcher_name)}
-                                >
+                                <button className={`researcher-header ${isSelected ? "selected" : ""}`} onClick={() => toggleResearcher(chatLog.researcher_name)}>
                                     <span className="researcher-name">
-                                        {chatLog.researcher_name} ({chatLog.planet_name})
-                                        {isSelected && <span className="selected-badge">✓ Selected</span>}
+                                        {chatLog.researcher_name} ({chatLog.planet_name}){isSelected && <span className="selected-badge">✓ Selected</span>}
                                     </span>
-                                    <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+                                    <span className="expand-icon">{isExpanded ? "▼" : "▶"}</span>
                                 </button>
 
                                 {isExpanded && (
                                     <div className="chat-messages">
                                         {chatLog.messages.map((msg, idx) => (
                                             <div key={idx} className={`chat-message ${msg.role}`}>
-                                                <span className="message-role">
-                                                    {msg.role === 'user' ? 'You' : chatLog.researcher_name}:
-                                                </span>
+                                                <span className="message-role">{msg.role === "user" ? "You" : chatLog.researcher_name}:</span>
                                                 <span className="message-content">{msg.content}</span>
                                             </div>
                                         ))}

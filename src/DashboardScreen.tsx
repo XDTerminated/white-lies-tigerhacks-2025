@@ -19,15 +19,15 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
     const playHoverSound = () => {
         const audio = new Audio("/Audio/pop.mp3");
         audio.volume = 0.3;
-        audio.play().catch(err => console.log("Audio play failed:", err));
+        audio.play().catch((err) => console.log("Audio play failed:", err));
     };
 
     const playClickSound = () => {
         const audio = new Audio("/Audio/ButtonClick.mp3");
         audio.volume = 0.5;
-        audio.play().catch(err => console.log("Audio play failed:", err));
+        audio.play().catch((err) => console.log("Audio play failed:", err));
     };
-    const [activeTab, setActiveTab] = useState<'missions' | 'nfts'>('missions');
+    const [activeTab, setActiveTab] = useState<"missions" | "nfts">("missions");
 
     useEffect(() => {
         async function loadSessions() {
@@ -38,20 +38,18 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                 setError(null);
                 const gameSessions = await getGameSessions(user.email);
                 // Sort by start_time descending (newest first)
-                const sorted = gameSessions.sort((a, b) =>
-                    new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
-                );
+                const sorted = gameSessions.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
 
                 // Log planet data for debugging
                 console.log("📊 Dashboard loaded sessions:", sorted);
-                sorted.forEach(session => {
-                    if (session.outcome === 'win') {
+                sorted.forEach((session) => {
+                    if (session.outcome === "win") {
                         console.log(`🎉 Win session ${session.game_id}:`, {
                             planet: session.selected_planet,
                             color: session.planet_color,
                             temp: session.planet_temperature,
                             ocean: session.planet_ocean,
-                            gravity: session.planet_gravity
+                            gravity: session.planet_gravity,
                         });
                     }
                 });
@@ -70,14 +68,14 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
+        return date.toLocaleString("en-US", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
         });
     };
 
@@ -85,11 +83,11 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
         if (!outcome) return <span className="outcome-badge pending">INCOMPLETE</span>;
 
         switch (outcome.toLowerCase()) {
-            case 'win':
+            case "win":
                 return <span className="outcome-badge win">✓ WIN</span>;
-            case 'lose':
+            case "lose":
                 return <span className="outcome-badge lose">✗ LOSE</span>;
-            case 'oxygen':
+            case "oxygen":
                 return <span className="outcome-badge oxygen">⚠ OXYGEN FAILURE</span>;
             default:
                 return <span className="outcome-badge">{outcome.toUpperCase()}</span>;
@@ -98,7 +96,7 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
 
     const renderPlanetVisualization = (session: GameSession) => {
         // Only render for winning sessions
-        if (session.outcome !== 'win') {
+        if (session.outcome !== "win") {
             console.log(`⚠️ Session ${session.game_id} is not a win, skipping visualization`);
             return null;
         }
@@ -107,7 +105,6 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
         let planetColor = session.planet_color;
         let planetTemperature = session.planet_temperature;
         let planetOcean = session.planet_ocean;
-        let planetGravity = session.planet_gravity;
 
         if (!planetColor) {
             // Try to load from localStorage as fallback
@@ -119,7 +116,6 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                     planetColor = planetData.planetColor;
                     planetTemperature = planetData.avgTemp;
                     planetOcean = planetData.oceanCoverage;
-                    planetGravity = planetData.gravity;
                     console.log(`📦 Loaded planet data from localStorage for ${session.game_id}:`, planetData);
                 }
             } catch (error) {
@@ -132,7 +128,7 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                 planet_color: session.planet_color,
                 planet_temperature: session.planet_temperature,
                 planet_ocean: session.planet_ocean,
-                planet_gravity: session.planet_gravity
+                planet_gravity: session.planet_gravity,
             });
             return null;
         }
@@ -140,7 +136,7 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
         console.log(`✅ Rendering planet visualization for session ${session.game_id}`);
 
         const oceanCoverage = planetOcean ? parseInt(planetOcean) : 0;
-        const planetName = session.selected_planet || '';
+        const planetName = session.selected_planet || "";
         const baseColor = getBaseColorFromDescription(planetColor);
 
         return (
@@ -172,12 +168,8 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                                     <line x1="0" y1="15" x2="20" y2="15" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
                                 </>
                             )}
-                            {planetColor.toLowerCase().includes("cloud") && (
-                                <ellipse cx="10" cy="10" rx="8" ry="3" fill="rgba(255,255,255,0.3)" />
-                            )}
-                            {planetColor.toLowerCase().includes("streak") && (
-                                <line x1="0" y1="8" x2="20" y2="12" stroke="rgba(139,0,0,0.4)" strokeWidth="2" />
-                            )}
+                            {planetColor.toLowerCase().includes("cloud") && <ellipse cx="10" cy="10" rx="8" ry="3" fill="rgba(255,255,255,0.3)" />}
+                            {planetColor.toLowerCase().includes("streak") && <line x1="0" y1="8" x2="20" y2="12" stroke="rgba(139,0,0,0.4)" strokeWidth="2" />}
                             {planetColor.toLowerCase().includes("ridge") && (
                                 <>
                                     <rect x="0" y="8" width="20" height="2" fill="rgba(255,255,255,0.5)" />
@@ -236,23 +228,17 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
 
             <div className="dashboard-content">
                 <div className="dashboard-tabs">
-                    <button
-                        className={`dashboard-tab ${activeTab === 'missions' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('missions')}
-                    >
+                    <button className={`dashboard-tab ${activeTab === "missions" ? "active" : ""}`} onClick={() => setActiveTab("missions")}>
                         <span>📊</span>
                         <span>Mission History</span>
                     </button>
-                    <button
-                        className={`dashboard-tab ${activeTab === 'nfts' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('nfts')}
-                    >
+                    <button className={`dashboard-tab ${activeTab === "nfts" ? "active" : ""}`} onClick={() => setActiveTab("nfts")}>
                         <span>🪐</span>
                         <span>Planet NFTs</span>
                     </button>
                 </div>
 
-                {activeTab === 'missions' && (
+                {activeTab === "missions" && (
                     <>
                         <h1 className="dashboard-title">MISSION HISTORY DATABASE</h1>
                         <p className="dashboard-subtitle">Past Planetary Research Missions</p>
@@ -279,7 +265,7 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                         {!isLoading && !error && sessions.length > 0 && (
                             <div className="sessions-list">
                                 {sessions.map((session) => (
-                                    <div key={session.game_id} className={`session-card ${session.outcome === 'win' ? 'session-card-win' : ''}`}>
+                                    <div key={session.game_id} className={`session-card ${session.outcome === "win" ? "session-card-win" : ""}`}>
                                         <div className="session-header">
                                             <div className="session-date">{formatDate(session.start_time)}</div>
                                             {getOutcomeBadge(session.outcome)}
@@ -288,11 +274,11 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                                             <div className="session-details">
                                                 <div className="session-row">
                                                     <span className="session-label">Researcher:</span>
-                                                    <span className="session-value">{session.selected_researcher || 'Unknown'}</span>
+                                                    <span className="session-value">{session.selected_researcher || "Unknown"}</span>
                                                 </div>
                                                 <div className="session-row">
                                                     <span className="session-label">Planet:</span>
-                                                    <span className="session-value">{session.selected_planet || 'Unknown'}</span>
+                                                    <span className="session-value">{session.selected_planet || "Unknown"}</span>
                                                 </div>
                                             </div>
                                             {renderPlanetVisualization(session)}
@@ -318,9 +304,7 @@ export default function DashboardScreen({ onStartNewGame, onViewSession }: Dashb
                     </>
                 )}
 
-                {activeTab === 'nfts' && (
-                    <NFTDashboard />
-                )}
+                {activeTab === "nfts" && <NFTDashboard />}
             </div>
         </div>
     );
