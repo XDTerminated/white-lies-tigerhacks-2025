@@ -7,6 +7,7 @@ import type { Voice } from "./data/voices";
 import { generateRandomPlanets, getBaseColorFromDescription } from "./utils/planetGenerator";
 import { useUser } from "./contexts/UserContext";
 import { addChatMessage, updatePlayerStats, createGameSession, endGameSession, saveGameChatLog, getResearcherChatLogs } from "./services/api";
+import { IntroScene } from "./IntroScene";
 import "./App.css";
 
 interface Message {
@@ -34,10 +35,18 @@ interface GameSession {
 }
 
 function App() {
+    // Trigger planet animation when game scene first loads
     const { logout, user } = useAuth0();
-    const { userData, playerStats, refreshStats } = useUser();
-    const [planets, setPlanets] = useState<Voice[]>([]);
-    const [databaseOrder, setDatabaseOrder] = useState<number[]>([]);
+    const { refreshStats } = useUser();
+    const [showIntro, setShowIntro] = useState(true);
+    const [introComplete, setIntroComplete] = useState(false);
+    // Initialize planets synchronously so they're available on first render
+    const [planets, setPlanets] = useState<Voice[]>(() => generateRandomPlanets(5));
+    // Create randomized order for database display
+    const [databaseOrder, setDatabaseOrder] = useState<number[]>(() => {
+        const indices = Array.from({ length: 5 }, (_, i) => i);
+        return indices.sort(() => Math.random() - 0.5);
+    });
     const [messages, setMessages] = useState<Message[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -46,6 +55,7 @@ function App() {
     const [isDatabaseOpen, setIsDatabaseOpen] = useState(false);
     const [databasePlanetIndex, setDatabasePlanetIndex] = useState(0);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const [isPlanetEntering, setIsPlanetEntering] = useState(false);
     const [removedPlanets, setRemovedPlanets] = useState<number[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
     const [gameOver, setGameOver] = useState<"win" | "lose" | "oxygen" | null>(null);
@@ -62,7 +72,15 @@ function App() {
         y: 0,
     });
     const [showButtonTooltip, setShowButtonTooltip] = useState<"eject" | "choose" | null>(null);
-    const [currentGameSession, setCurrentGameSession] = useState<GameSession | null>(null);
+    // Initialize game session synchronously
+    const [currentGameSession, setCurrentGameSession] = useState<GameSession | null>(() => {
+        const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return {
+            gameId,
+            startTime: Date.now(),
+            chatsByPlanet: {},
+        };
+    });
     const [isChatLogOpen, setIsChatLogOpen] = useState(false);
     const [allChatLogs, setAllChatLogs] = useState<ChatLog[]>([]);
     const [nameTooltipPosition, setNameTooltipPosition] = useState({ x: 0, y: 0 });
@@ -74,27 +92,16 @@ function App() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const processingAudioRef = useRef<HTMLAudioElement | null>(null);
     const oxygenTimerRef = useRef<number | null>(null);
+
     const lastMultipleOf5Ref = useRef<number>(30); // Track last multiple of 5 we crossed
     const gameSessionCreatedRef = useRef<string | null>(null); // Track which game session was created in backend
 
-    // Generate random planets on component mount and initialize game session
-    useEffect(() => {
-        const randomPlanets = generateRandomPlanets(5);
-        setPlanets(randomPlanets);
+    // Trigger planet animation when game scene first loads
 
-        // Create randomized order for database display
-        const indices = Array.from({ length: 5 }, (_, i) => i);
-        const shuffledIndices = indices.sort(() => Math.random() - 0.5);
-        setDatabaseOrder(shuffledIndices);
-
-        // Initialize new game session
-        const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        setCurrentGameSession({
-            gameId,
-            startTime: Date.now(),
-            chatsByPlanet: {},
-        });
-    }, []); // Empty dependency array - only run on mount
+    const handleIntroComplete = () => {
+        setShowIntro(false);
+        setIntroComplete(true);
+    };
 
     // Create backend session when user becomes available
     useEffect(() => {
@@ -114,8 +121,8 @@ function App() {
 
     // Oxygen depletion timer - natural decay
     useEffect(() => {
-        // Only deplete oxygen if game is not over
-        if (gameOver) {
+        // Only deplete oxygen if game is not over AND intro is complete
+        if (gameOver || showIntro) {
             if (oxygenTimerRef.current) {
                 clearInterval(oxygenTimerRef.current);
                 oxygenTimerRef.current = null;
@@ -158,7 +165,7 @@ function App() {
                 oxygenTimerRef.current = null;
             }
         };
-    }, [gameOver]);
+    }, [gameOver, showIntro]);
 
     // Save current planet's messages to game session whenever messages change
     useEffect(() => {
@@ -289,7 +296,12 @@ function App() {
                     setMessages(savedMessages || []);
                 }
 
-                setTimeout(() => setIsTransitioning(false), 50);
+                setTimeout(() => {
+                    setIsTransitioning(false);
+                    setIsPlanetEntering(true);
+                    // Remove entering class after animation completes
+                    setTimeout(() => setIsPlanetEntering(false), 1200);
+                }, 50);
             }, 300);
         },
         [currentVoiceIndex, removedPlanets, planets, currentVoice, currentGameSession, messages]
@@ -758,6 +770,7 @@ function App() {
         setOxygenLevel(0.3); // Reset oxygen to 30%
         lastMultipleOf5Ref.current = 30; // Reset the multiple tracker
         setFlashRed(false);
+        setShowIntro(true); // Show intro scene again
 
         // Generate new random planets
         const randomPlanets = generateRandomPlanets(5);
@@ -808,12 +821,8 @@ function App() {
     const actualDatabasePlanetIndex = databaseOrder.length > 0 ? databaseOrder[databasePlanetIndex] : databasePlanetIndex;
     const databasePlanet = planets.length > 0 ? planets[actualDatabasePlanetIndex] : null;
 
-    // Don't render until planets are loaded
-    if (!currentVoice || !databasePlanet) {
-        return <div className="app">Loading planets...</div>;
-    }
-
-    return (
+    // Render the game scene content
+    const gameSceneContent = (
         <div className={`app ${flashRed ? 'screen-flash-red' : ''}`}>
             <button 
                 className="logout-button" 
@@ -825,7 +834,7 @@ function App() {
             </button>
             
             {/* Oxygen Bar */}
-            <div className={`oxygen-bar-container ${flashRed ? 'flash-red' : ''}`}>
+            <div className={`oxygen-bar-container ${flashRed ? 'flash-red' : ''} ${introComplete ? 'intro-complete' : ''}`}>
                 <div className="oxygen-bar-label">OXYGEN</div>
                 <div className="oxygen-bar-outer">
                     <div 
@@ -844,104 +853,115 @@ function App() {
                         </button>
                         <div className="database-modal-content">
                             <h2>Planetary Database</h2>
-                            <div className="database-layout">
-                                {/* Left side: Stats and Info */}
-                                <div className="database-left-panel">
-                                    <h3 className="database-planet-name">{databasePlanet.planetName}</h3>
-                                    <div className="database-researcher">Researcher: {databasePlanet.name}</div>
-                                    <div className="database-stats">
-                                        <div className="database-stat-row">
-                                            <span className="stat-label-db">Temperature:</span>
-                                            <span className="stat-value-db">{databasePlanet.avgTemp}</span>
+                            <div>
+                                {databasePlanet ? (
+                                    <>
+                                        <div className="database-layout">
+                                            {/* Left side: Stats and Info */}
+                                            <div className="database-left-panel">
+                                                <h3 className="database-planet-name">{databasePlanet.planetName}</h3>
+                                                <div className="database-researcher">Researcher: {databasePlanet.name}</div>
+                                                <div className="database-stats">
+                                                    <div className="database-stat-row">
+                                                        <span className="stat-label-db">Temperature:</span>
+                                                        <span className="stat-value-db">{databasePlanet.avgTemp}</span>
+                                                    </div>
+                                                    <div className="database-stat-row">
+                                                        <span className="stat-label-db">Color:</span>
+                                                        <span className="stat-value-db">{databasePlanet.planetColor}</span>
+                                                    </div>
+                                                    <div className="database-stat-row">
+                                                        <span className="stat-label-db">Ocean Coverage:</span>
+                                                        <span className="stat-value-db">{databasePlanet.oceanCoverage}</span>
+                                                    </div>
+                                                    <div className="database-stat-row">
+                                                        <span className="stat-label-db">Gravity:</span>
+                                                        <span className="stat-value-db">{databasePlanet.gravity}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Right side: Planet Visualization */}
+                                            <div className="database-right-panel">
+                                                <svg viewBox="0 0 200 200" className="database-planet-svg">
+                                                    <defs>
+                                                        <radialGradient id={`dbPlanetGradient-${databasePlanetIndex}`}>
+                                                            <stop offset="0%" stopColor={getBaseColorFromDescription(databasePlanet.planetColor)} stopOpacity="1" />
+                                                            <stop offset="70%" stopColor={getBaseColorFromDescription(databasePlanet.planetColor)} stopOpacity="0.8" />
+                                                            <stop offset="100%" stopColor="#000000" stopOpacity="0.6" />
+                                                        </radialGradient>
+                                                        <pattern id={`dbPattern-${databasePlanetIndex}`} width="20" height="20" patternUnits="userSpaceOnUse">
+                                                            {databasePlanet.planetName && databasePlanet.planetName.includes("Earth") && (
+                                                                <>
+                                                                    <circle cx="5" cy="5" r="3" fill="#228B22" opacity="0.6" />
+                                                                    <circle cx="15" cy="15" r="4" fill="#228B22" opacity="0.5" />
+                                                                </>
+                                                            )}
+                                                            {databasePlanet.oceanCoverage && parseInt(databasePlanet.oceanCoverage) > 70 && databasePlanet.planetName && !databasePlanet.planetName.includes("Earth") && (
+                                                                <>
+                                                                    <path d="M0,10 Q5,8 10,10 T20,10" stroke="rgba(255,255,255,0.3)" fill="none" strokeWidth="1" />
+                                                                    <path d="M0,15 Q5,13 10,15 T20,15" stroke="rgba(255,255,255,0.2)" fill="none" strokeWidth="1" />
+                                                                </>
+                                                            )}
+                                                            {databasePlanet.planetColor && (databasePlanet.planetColor.toLowerCase().includes("frost") || databasePlanet.planetColor.toLowerCase().includes("icy")) && (
+                                                                <>
+                                                                    <line x1="0" y1="5" x2="20" y2="5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+                                                                    <line x1="0" y1="10" x2="20" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
+                                                                    <line x1="0" y1="15" x2="20" y2="15" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+                                                                </>
+                                                            )}
+                                                            {databasePlanet.planetColor && databasePlanet.planetColor.toLowerCase().includes("cloud") && <ellipse cx="10" cy="10" rx="8" ry="3" fill="rgba(255,255,255,0.3)" />}
+                                                            {databasePlanet.planetColor && databasePlanet.planetColor.toLowerCase().includes("streak") && <line x1="0" y1="8" x2="20" y2="12" stroke="rgba(139,0,0,0.4)" strokeWidth="2" />}
+                                                            {databasePlanet.planetColor && databasePlanet.planetColor.toLowerCase().includes("ridge") && (
+                                                                <>
+                                                                    <rect x="0" y="8" width="20" height="2" fill="rgba(255,255,255,0.5)" />
+                                                                    <rect x="0" y="13" width="20" height="1" fill="rgba(255,255,255,0.3)" />
+                                                                </>
+                                                            )}
+                                                        </pattern>
+                                                    </defs>
+                                                    <circle cx="100" cy="100" r="70" fill={`url(#dbPlanetGradient-${databasePlanetIndex})`} stroke={getBaseColorFromDescription(databasePlanet.planetColor)} strokeWidth="2" opacity="0.9" />
+                                                    <circle cx="100" cy="100" r="70" fill={`url(#dbPattern-${databasePlanetIndex})`} opacity="0.7" />
+                                                    {databasePlanet.planetName && databasePlanet.planetName.includes("Erythos") && (
+                                                        <>
+                                                            <ellipse cx="70" cy="85" rx="12" ry="15" fill="rgba(139,0,0,0.4)" />
+                                                            <ellipse cx="120" cy="105" rx="15" ry="10" fill="rgba(139,0,0,0.3)" />
+                                                        </>
+                                                    )}
+                                                    {databasePlanet.planetName && databasePlanet.planetName.includes("Zenthara") && (
+                                                        <>
+                                                            <circle cx="80" cy="95" r="8" fill="rgba(60,20,10,0.5)" />
+                                                            <circle cx="110" cy="110" r="6" fill="rgba(60,20,10,0.4)" />
+                                                            <circle cx="95" cy="80" r="5" fill="rgba(60,20,10,0.3)" />
+                                                        </>
+                                                    )}
+                                                    {databasePlanet.planetName && databasePlanet.planetName.includes("Kalmora") && (
+                                                        <>
+                                                            <ellipse cx="85" cy="90" rx="18" ry="22" fill="rgba(34,139,34,0.5)" />
+                                                            <ellipse cx="115" cy="110" rx="15" ry="18" fill="rgba(34,139,34,0.4)" />
+                                                        </>
+                                                    )}
+                                                    <circle cx="100" cy="100" r="75" fill="none" stroke={getBaseColorFromDescription(databasePlanet.planetColor)} strokeWidth="1" opacity="0.3" />
+                                                </svg>
+                                            </div>
                                         </div>
-                                        <div className="database-stat-row">
-                                            <span className="stat-label-db">Color:</span>
-                                            <span className="stat-value-db">{databasePlanet.planetColor}</span>
+                                        {/* Navigation arrows at bottom */}
+                                        <div className="database-navigation">
+                                            <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("prev")} onMouseEnter={playHoverSound}>
+                                                ◄
+                                            </button>
+                                            <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("next")} onMouseEnter={playHoverSound}>
+                                                ►
+                                            </button>
                                         </div>
-                                        <div className="database-stat-row">
-                                            <span className="stat-label-db">Ocean Coverage:</span>
-                                            <span className="stat-value-db">{databasePlanet.oceanCoverage}</span>
-                                        </div>
-                                        <div className="database-stat-row">
-                                            <span className="stat-label-db">Gravity:</span>
-                                            <span className="stat-value-db">{databasePlanet.gravity}</span>
+                                    </>
+                                ) : (
+                                    <div className="database-layout">
+                                        <div className="database-left-panel">
+                                            <h3 className="database-planet-name">No planet data available</h3>
                                         </div>
                                     </div>
-                                </div>
-
-                                {/* Right side: Planet Visualization */}
-                                <div className="database-right-panel">
-                                    <svg viewBox="0 0 200 200" className="database-planet-svg">
-                                        <defs>
-                                            <radialGradient id={`dbPlanetGradient-${databasePlanetIndex}`}>
-                                                <stop offset="0%" stopColor={getBaseColorFromDescription(databasePlanet.planetColor)} stopOpacity="1" />
-                                                <stop offset="70%" stopColor={getBaseColorFromDescription(databasePlanet.planetColor)} stopOpacity="0.8" />
-                                                <stop offset="100%" stopColor="#000000" stopOpacity="0.6" />
-                                            </radialGradient>
-                                            <pattern id={`dbPattern-${databasePlanetIndex}`} width="20" height="20" patternUnits="userSpaceOnUse">
-                                                {databasePlanet.planetName.includes("Earth") && (
-                                                    <>
-                                                        <circle cx="5" cy="5" r="3" fill="#228B22" opacity="0.6" />
-                                                        <circle cx="15" cy="15" r="4" fill="#228B22" opacity="0.5" />
-                                                    </>
-                                                )}
-                                                {parseInt(databasePlanet.oceanCoverage) > 70 && !databasePlanet.planetName.includes("Earth") && (
-                                                    <>
-                                                        <path d="M0,10 Q5,8 10,10 T20,10" stroke="rgba(255,255,255,0.3)" fill="none" strokeWidth="1" />
-                                                        <path d="M0,15 Q5,13 10,15 T20,15" stroke="rgba(255,255,255,0.2)" fill="none" strokeWidth="1" />
-                                                    </>
-                                                )}
-                                                {(databasePlanet.planetColor.toLowerCase().includes("frost") || databasePlanet.planetColor.toLowerCase().includes("icy")) && (
-                                                    <>
-                                                        <line x1="0" y1="5" x2="20" y2="5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-                                                        <line x1="0" y1="10" x2="20" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
-                                                        <line x1="0" y1="15" x2="20" y2="15" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-                                                    </>
-                                                )}
-                                                {databasePlanet.planetColor.toLowerCase().includes("cloud") && <ellipse cx="10" cy="10" rx="8" ry="3" fill="rgba(255,255,255,0.3)" />}
-                                                {databasePlanet.planetColor.toLowerCase().includes("streak") && <line x1="0" y1="8" x2="20" y2="12" stroke="rgba(139,0,0,0.4)" strokeWidth="2" />}
-                                                {databasePlanet.planetColor.toLowerCase().includes("ridge") && (
-                                                    <>
-                                                        <rect x="0" y="8" width="20" height="2" fill="rgba(255,255,255,0.5)" />
-                                                        <rect x="0" y="13" width="20" height="1" fill="rgba(255,255,255,0.3)" />
-                                                    </>
-                                                )}
-                                            </pattern>
-                                        </defs>
-                                        <circle cx="100" cy="100" r="70" fill={`url(#dbPlanetGradient-${databasePlanetIndex})`} stroke={getBaseColorFromDescription(databasePlanet.planetColor)} strokeWidth="2" opacity="0.9" />
-                                        <circle cx="100" cy="100" r="70" fill={`url(#dbPattern-${databasePlanetIndex})`} opacity="0.7" />
-                                        {databasePlanet.planetName.includes("Erythos") && (
-                                            <>
-                                                <ellipse cx="70" cy="85" rx="12" ry="15" fill="rgba(139,0,0,0.4)" />
-                                                <ellipse cx="120" cy="105" rx="15" ry="10" fill="rgba(139,0,0,0.3)" />
-                                            </>
-                                        )}
-                                        {databasePlanet.planetName.includes("Zenthara") && (
-                                            <>
-                                                <circle cx="80" cy="95" r="8" fill="rgba(60,20,10,0.5)" />
-                                                <circle cx="110" cy="110" r="6" fill="rgba(60,20,10,0.4)" />
-                                                <circle cx="95" cy="80" r="5" fill="rgba(60,20,10,0.3)" />
-                                            </>
-                                        )}
-                                        {databasePlanet.planetName.includes("Kalmora") && (
-                                            <>
-                                                <ellipse cx="85" cy="90" rx="18" ry="22" fill="rgba(34,139,34,0.5)" />
-                                                <ellipse cx="115" cy="110" rx="15" ry="18" fill="rgba(34,139,34,0.4)" />
-                                            </>
-                                        )}
-                                        <circle cx="100" cy="100" r="75" fill="none" stroke={getBaseColorFromDescription(databasePlanet.planetColor)} strokeWidth="1" opacity="0.3" />
-                                    </svg>
-                                </div>
-                            </div>
-
-                            {/* Navigation arrows at bottom */}
-                            <div className="database-navigation">
-                                <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("prev")} onMouseEnter={playHoverSound}>
-                                    ◄
-                                </button>
-                                <button className="database-nav-btn" onClick={() => handleDatabasePlanetChange("next")} onMouseEnter={playHoverSound}>
-                                    ►
-                                </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -982,80 +1002,87 @@ function App() {
                     {/* Stars in window */}
                     <div className="space-effects"></div>
 
-                    <div className={`planet-display ${isTransitioning ? "transitioning" : ""} ${isDeleting ? "deleting" : ""}`}>
+                    <div className={`planet-display ${isTransitioning ? "transitioning" : ""} ${isDeleting ? "deleting" : ""} ${introComplete && !isPlanetEntering ? "intro-complete" : ""} ${isPlanetEntering ? "planet-entering" : ""}`}>
                         <svg viewBox="0 0 200 200" className="planet-svg">
                             {/* Planet circle */}
                             <defs>
-                                <radialGradient id={`planetGradient-${currentVoiceIndex}`}>
-                                    <stop offset="0%" stopColor={getBaseColorFromDescription(currentVoice.planetColor)} stopOpacity="1" />
-                                    <stop offset="70%" stopColor={getBaseColorFromDescription(currentVoice.planetColor)} stopOpacity="0.8" />
-                                    <stop offset="100%" stopColor="#000000" stopOpacity="0.6" />
-                                </radialGradient>
-                                {/* Pattern for different planet types */}
-                                <pattern id={`pattern-${currentVoiceIndex}`} width="20" height="20" patternUnits="userSpaceOnUse">
-                                    {currentVoice.planetName.includes("Earth") && (
-                                        <>
-                                            <circle cx="5" cy="5" r="3" fill="#228B22" opacity="0.6" />
-                                            <circle cx="15" cy="15" r="4" fill="#228B22" opacity="0.5" />
-                                        </>
-                                    )}
-                                    {parseInt(currentVoice.oceanCoverage) > 70 && !currentVoice.planetName.includes("Earth") && (
-                                        <>
-                                            <path d="M0,10 Q5,8 10,10 T20,10" stroke="rgba(255,255,255,0.3)" fill="none" strokeWidth="1" />
-                                            <path d="M0,15 Q5,13 10,15 T20,15" stroke="rgba(255,255,255,0.2)" fill="none" strokeWidth="1" />
-                                        </>
-                                    )}
-                                    {currentVoice.planetColor.toLowerCase().includes("frost") ||
-                                        (currentVoice.planetColor.toLowerCase().includes("icy") && (
-                                            <>
-                                                <line x1="0" y1="5" x2="20" y2="5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-                                                <line x1="0" y1="10" x2="20" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
-                                                <line x1="0" y1="15" x2="20" y2="15" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-                                            </>
-                                        ))}
-                                    {currentVoice.planetColor.toLowerCase().includes("cloud") && (
-                                        <>
-                                            <ellipse cx="10" cy="10" rx="8" ry="3" fill="rgba(255,255,255,0.3)" />
-                                        </>
-                                    )}
-                                    {currentVoice.planetColor.toLowerCase().includes("streak") && (
-                                        <>
-                                            <line x1="0" y1="8" x2="20" y2="12" stroke="rgba(139,0,0,0.4)" strokeWidth="2" />
-                                        </>
-                                    )}
-                                    {currentVoice.planetColor.toLowerCase().includes("ridge") && (
-                                        <>
-                                            <rect x="0" y="8" width="20" height="2" fill="rgba(255,255,255,0.5)" />
-                                            <rect x="0" y="13" width="20" height="1" fill="rgba(255,255,255,0.3)" />
-                                        </>
-                                    )}
-                                </pattern>
+                                {currentVoice && (
+                                    <>
+                                        <radialGradient id={`planetGradient-${currentVoiceIndex}`}>
+                                            <stop offset="0%" stopColor={getBaseColorFromDescription(currentVoice.planetColor)} stopOpacity="1" />
+                                            <stop offset="70%" stopColor={getBaseColorFromDescription(currentVoice.planetColor)} stopOpacity="0.8" />
+                                            <stop offset="100%" stopColor="#000000" stopOpacity="0.6" />
+                                        </radialGradient>
+                                        {/* Pattern for different planet types */}
+                                        <pattern id={`pattern-${currentVoiceIndex}`} width="20" height="20" patternUnits="userSpaceOnUse">
+                                            {currentVoice.planetName && currentVoice.planetName.includes("Earth") && (
+                                                <>
+                                                    <circle cx="5" cy="5" r="3" fill="#228B22" opacity="0.6" />
+                                                    <circle cx="15" cy="15" r="4" fill="#228B22" opacity="0.5" />
+                                                </>
+                                            )}
+                                            {currentVoice.oceanCoverage && parseInt(currentVoice.oceanCoverage) > 70 && currentVoice.planetName && !currentVoice.planetName.includes("Earth") && (
+                                                <>
+                                                    <path d="M0,10 Q5,8 10,10 T20,10" stroke="rgba(255,255,255,0.3)" fill="none" strokeWidth="1" />
+                                                    <path d="M0,15 Q5,13 10,15 T20,15" stroke="rgba(255,255,255,0.2)" fill="none" strokeWidth="1" />
+                                                </>
+                                            )}
+                                            {currentVoice.planetColor && (currentVoice.planetColor.toLowerCase().includes("frost") || currentVoice.planetColor.toLowerCase().includes("icy")) && (
+                                                <>
+                                                    <line x1="0" y1="5" x2="20" y2="5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+                                                    <line x1="0" y1="10" x2="20" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
+                                                    <line x1="0" y1="15" x2="20" y2="15" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+                                                </>
+                                            )}
+                                            {currentVoice.planetColor && currentVoice.planetColor.toLowerCase().includes("cloud") && (
+                                                <>
+                                                    <ellipse cx="10" cy="10" rx="8" ry="3" fill="rgba(255,255,255,0.3)" />
+                                                </>
+                                            )}
+                                            {currentVoice.planetColor && currentVoice.planetColor.toLowerCase().includes("streak") && (
+                                                <>
+                                                    <line x1="0" y1="8" x2="20" y2="12" stroke="rgba(139,0,0,0.4)" strokeWidth="2" />
+                                                </>
+                                            )}
+                                            {currentVoice.planetColor && currentVoice.planetColor.toLowerCase().includes("ridge") && (
+                                                <>
+                                                    <rect x="0" y="8" width="20" height="2" fill="rgba(255,255,255,0.5)" />
+                                                    <rect x="0" y="13" width="20" height="1" fill="rgba(255,255,255,0.3)" />
+                                                </>
+                                            )}
+                                        </pattern>
+                                    </>
+                                )}
                             </defs>
-                            <circle cx="100" cy="100" r="70" fill={`url(#planetGradient-${currentVoiceIndex})`} stroke={getBaseColorFromDescription(currentVoice.planetColor)} strokeWidth="2" opacity="0.9" />
                             {/* Apply pattern overlay */}
-                            <circle cx="100" cy="100" r="70" fill={`url(#pattern-${currentVoiceIndex})`} opacity="0.7" />
-                            {/* Add some random surface features based on planet name */}
-                            {currentVoice.planetName.includes("Erythos") && (
+                            {currentVoice && (
                                 <>
-                                    <ellipse cx="70" cy="85" rx="12" ry="15" fill="rgba(139,0,0,0.4)" />
-                                    <ellipse cx="120" cy="105" rx="15" ry="10" fill="rgba(139,0,0,0.3)" />
+                                    <circle cx="100" cy="100" r="70" fill={`url(#planetGradient-${currentVoiceIndex})`} stroke={getBaseColorFromDescription(currentVoice.planetColor)} strokeWidth="2" opacity="0.9" />
+                                    <circle cx="100" cy="100" r="70" fill={`url(#pattern-${currentVoiceIndex})`} opacity="0.7" />
+                                    {/* Add some random surface features based on planet name */}
+                                    {currentVoice.planetName && currentVoice.planetName.includes("Erythos") && (
+                                        <>
+                                            <ellipse cx="70" cy="85" rx="12" ry="15" fill="rgba(139,0,0,0.4)" />
+                                            <ellipse cx="120" cy="105" rx="15" ry="10" fill="rgba(139,0,0,0.3)" />
+                                        </>
+                                    )}
+                                    {currentVoice.planetName && currentVoice.planetName.includes("Zenthara") && (
+                                        <>
+                                            <circle cx="80" cy="95" r="8" fill="rgba(60,20,10,0.5)" />
+                                            <circle cx="110" cy="110" r="6" fill="rgba(60,20,10,0.4)" />
+                                            <circle cx="95" cy="80" r="5" fill="rgba(60,20,10,0.3)" />
+                                        </>
+                                    )}
+                                    {currentVoice.planetName && currentVoice.planetName.includes("Kalmora") && (
+                                        <>
+                                            <ellipse cx="85" cy="90" rx="18" ry="22" fill="rgba(34,139,34,0.5)" />
+                                            <ellipse cx="115" cy="110" rx="15" ry="18" fill="rgba(34,139,34,0.4)" />
+                                        </>
+                                    )}
+                                    {/* Atmosphere glow */}
+                                    <circle cx="100" cy="100" r="75" fill="none" stroke={getBaseColorFromDescription(currentVoice.planetColor)} strokeWidth="1" opacity="0.3" />
                                 </>
                             )}
-                            {currentVoice.planetName.includes("Zenthara") && (
-                                <>
-                                    <circle cx="80" cy="95" r="8" fill="rgba(60,20,10,0.5)" />
-                                    <circle cx="110" cy="110" r="6" fill="rgba(60,20,10,0.4)" />
-                                    <circle cx="95" cy="80" r="5" fill="rgba(60,20,10,0.3)" />
-                                </>
-                            )}
-                            {currentVoice.planetName.includes("Kalmora") && (
-                                <>
-                                    <ellipse cx="85" cy="90" rx="18" ry="22" fill="rgba(34,139,34,0.5)" />
-                                    <ellipse cx="115" cy="110" rx="15" ry="18" fill="rgba(34,139,34,0.4)" />
-                                </>
-                            )}
-                            {/* Atmosphere glow */}
-                            <circle cx="100" cy="100" r="75" fill="none" stroke={getBaseColorFromDescription(currentVoice.planetColor)} strokeWidth="1" opacity="0.3" />
                         </svg>
                     </div>
                 </div>
@@ -1080,7 +1107,7 @@ function App() {
                                 }}
                                 onMouseLeave={() => setShowNameTooltip(false)}
                             >
-                                {currentVoice.name}
+                                {currentVoice && currentVoice.name}
                                 {showNameTooltip && (
                                     <div
                                         className="name-tooltip"
@@ -1295,7 +1322,7 @@ function App() {
                             <>
                                 <h1 className="game-over-title win-title">🎉 SUCCESS! 🎉</h1>
                                 <p className="game-over-message">
-                                    You found the real researcher at {currentVoice.planetName}!
+                                    {currentVoice && currentVoice.planetName && `You found the real researcher at ${currentVoice.planetName}!`}
                                     <br />
                                     Your ship has landed safely.
                                 </p>
@@ -1313,7 +1340,7 @@ function App() {
                             <>
                                 <h1 className="game-over-title lose-title">💥 MISSION FAILED 💥</h1>
                                 <p className="game-over-message">
-                                    {currentVoice.planetName} was an impostor!
+                                    {currentVoice && currentVoice.planetName && `${currentVoice.planetName} was an impostor!`}
                                     <br />
                                     Your ship crashed on landing.
                                 </p>
@@ -1366,6 +1393,14 @@ function App() {
             )}
         </div>
     );
+
+
+    // Show intro scene first with game scene in background
+    if (showIntro) {
+        return <IntroScene onComplete={handleIntroComplete} gameSceneContent={gameSceneContent} />;
+    }
+
+    return gameSceneContent;
 }
 
 export default App;

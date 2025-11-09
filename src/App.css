@@ -9,6 +9,7 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  background: #000;
 }
 
 .app {
@@ -33,10 +34,10 @@ body,
   height: 100%;
   background: radial-gradient(
     ellipse at center,
-    rgba(10, 15, 20, 0.2) 0%,
-    rgba(10, 15, 20, 0.5) 40%,
-    rgba(5, 10, 15, 0.75) 70%,
-    rgba(0, 5, 10, 0.9) 100%
+    rgba(10, 15, 20, 0.15) 0%,
+    rgba(10, 15, 20, 0.35) 40%,
+    rgba(5, 10, 15, 0.55) 70%,
+    rgba(0, 5, 10, 0.7) 100%
   );
   pointer-events: none;
   z-index: 9999;
@@ -125,6 +126,32 @@ body,
   border: 2px solid #00ffff;
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
   transition: all 0.1s ease;
+  /* Initial state - hidden above screen */
+  opacity: 0;
+  transform: translateX(-50%) translateY(-150%);
+}
+
+/* Entrance animation after intro completes */
+.oxygen-bar-container.intro-complete {
+  animation: slideInFromTop 1s ease-out forwards;
+  animation-delay: 0.3s;
+}
+
+@keyframes slideInFromTop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-150%);
+  }
+  60% {
+    transform: translateX(-50%) translateY(10px);
+  }
+  80% {
+    transform: translateX(-50%) translateY(-5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .oxygen-bar-container.flash-red {
@@ -401,11 +428,45 @@ body,
   pointer-events: none;
   z-index: 5;
   transition: opacity 0.3s ease, transform 0.3s ease;
+  /* Initial state - hidden and scaled down */
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.3);
+}
+
+/* Entrance animation after intro completes */
+.planet-display.intro-complete {
+  animation: planetEntrance 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.5s;
+}
+
+@keyframes planetEntrance {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(-180deg);
+  }
+  50% {
+    opacity: 0.8;
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1.1) rotate(10deg);
+  }
+  85% {
+    transform: translate(-50%, -50%) scale(0.95) rotate(-5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
 }
 
 .planet-display.transitioning {
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.8) rotate(180deg);
+  transform: translate(-50%, -50%) scale(0.3) rotate(180deg);
+}
+
+/* Entrance animation for planets when switching */
+.planet-display.planet-entering {
+  animation: planetEntrance 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .planet-display.deleting {
@@ -1226,19 +1287,6 @@ body,
   mix-blend-mode: overlay;
 }
 
-.database-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-}
-
 .database-modal {
   background-image: url("/Assets/Database2.png");
   background-size: 100% 100%;
@@ -1476,6 +1524,9 @@ body,
   background-size: 100% 100%;
   background-repeat: no-repeat;
   background-position: center;
+  background-color: rgba(6, 8, 14, 0.66);
+  background-blend-mode: overlay;
+  backdrop-filter: blur(4px) saturate(120%);
   border: none;
   border-radius: 0;
   padding: 3rem 4rem;
