@@ -28,7 +28,6 @@ tigerhacks25/
 │       ├── migrations/
 │       ├── planet-nft/      # Solana Anchor program
 │       └── pyproject.toml
-├── packages/                # Shared packages (future)
 ├── turbo.json              # Turborepo configuration
 ├── pnpm-workspace.yaml     # pnpm workspaces
 └── package.json            # Root scripts
